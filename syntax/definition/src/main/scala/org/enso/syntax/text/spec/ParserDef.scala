@@ -1,6 +1,7 @@
 package org.enso.syntax.text.spec
 
 import java.io.DataInputStream
+import java.util
 
 import org.enso.data.VectorMap
 import org.enso.flexer
@@ -12,10 +13,16 @@ import org.enso.syntax.text.AST
 import org.enso.syntax.text.AST.Text.Segment.EOL
 
 import scala.annotation.tailrec
+import scala.reflect.internal.util.WeakHashSet
 import scala.reflect.runtime.universe.reify
 
 case class ParserDef() extends flexer.Parser[AST.Module] {
   import ParserDef2._
+
+  var astPool = WeakHashSet[AST]()
+
+  final private def cache[T <: AST](t: T): T =
+    astPool.findEntryOrUpdate(t).asInstanceOf[T]
 
   final def unwrap[T](opt: Option[T]): T = opt match {
     case None    => throw new Error("Internal Error")
@@ -145,7 +152,7 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
     var current: Option[AST.Ident] = None
 
     def on(cons: String => AST.Ident): Unit = logger.trace_ {
-      on(cons(currentMatch))
+      on(cache(cons(currentMatch)))
     }
 
     def on(ast: AST.Ident): Unit = logger.trace {
@@ -196,11 +203,11 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
 
   final object opr {
     def on(cons: String => AST.Ident): Unit = logger.trace {
-      on(cons(currentMatch))
+      on(cache(cons(currentMatch)))
     }
 
     def onNoMod(cons: String => AST.Ident): Unit = logger.trace {
-      onNoMod(cons(currentMatch))
+      onNoMod(cache(cons(currentMatch)))
     }
 
     def on(ast: AST.Ident): Unit = logger.trace {
