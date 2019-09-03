@@ -154,7 +154,7 @@ object AST {
     * type to generic [[AST]]
     */
   case class Node[+H[_], F[_]](unFix: H[Node[F, F]], id: Option[ID] = None)(
-    implicit ops: NodeOps[H, Node[F, F]]
+    implicit ops: NodeClass[H, Node[F, F]]
   ) {
     override def toString  = s"Node($id,$unFix)"
     val repr: Repr.Builder = ops.repr(unFix)
@@ -171,28 +171,30 @@ object AST {
   object Node {
     implicit def repr[H[_], T[_]]:          Repr[Node[H, T]] = _.repr
     implicit def unwrap[T[_]](t: ASTOf[T]): T[AST]           = t.unFix
-    implicit def wrap[T[_]](t: T[AST])(implicit ev: NodeOps[T, AST]): ASTOf[T] =
+    implicit def wrap[T[_]](
+      t: T[AST]
+    )(implicit ev: NodeClass[T, AST]): ASTOf[T] =
       Node(t)
   }
 
   //// Ops ////
 
-  trait NodeOps[T[_], S] {
+  trait NodeClass[T[_], S] {
     def repr(t: T[S]): Repr.Builder
     def map(t: T[S])(f: AST => AST): T[S]
     def mapWithOff(t: T[S])(f: (Int, AST) => AST): T[S]
     def traverseWithOff(t: T[S])(f: (Int, AST) => AST): T[S]
     def zipWithOffset(t: T[S]): T[(Int, S)]
   }
-  object NodeOps {
-    def apply[T[_], S](implicit ev: NodeOps[T, S]): NodeOps[T, S] = ev
+  object NodeClass {
+    def apply[T[_], S](implicit ev: NodeClass[T, S]): NodeClass[T, S] = ev
     implicit def instance[T[_]](
       implicit
       evRepr: Repr[T[AST]],
       evFtor: Functor[T],
       evOZip: OffsetZip[T, AST]
-    ): NodeOps[T, AST] =
-      new NodeOps[T, AST] {
+    ): NodeClass[T, AST] =
+      new NodeClass[T, AST] {
         def repr(t: T[AST]):               Repr.Builder = evRepr.repr(t)
         def map(t: T[AST])(f: AST => AST): T[AST]       = Functor[T].map(t)(f)
         def mapWithOff(t: T[AST])(f: (Int, AST) => AST): T[AST] =
@@ -209,6 +211,12 @@ object AST {
         }
         def zipWithOffset(t: T[AST]): T[(Int, AST)] = OffsetZip(t)
       }
+  }
+
+  //// ASTOps ////
+
+  implicit class ASTOps[T[AST] <: ShapeOf[AST]](t: ASTOf[T]) {
+    def as[T: UnapplyByType]: Option[T] = UnapplyByType[T].unapply(t)
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -1331,6 +1339,7 @@ object AST {
     println(fff3)
 
     val v1   = Ident.Var("foo")
+    val v1_  = v1: AST
     val opr1 = Ident.Opr("+")
     val v2   = App.Prefix(Var("x"), 10, Var("z"))
 
@@ -1358,5 +1367,8 @@ object AST {
     }
 
     println(voff2.zipWithOffset())
+
+    val v1_x = vx.as[Var]
+    println(v1_x)
   }
 }
