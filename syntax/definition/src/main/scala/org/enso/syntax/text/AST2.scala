@@ -491,24 +491,38 @@ object AST {
     //////////////
 
     type Text = ASTOf[TextOf]
-    sealed trait TextOf[T] extends ShapeOf[T]
+    sealed trait TextOf[T] extends ShapeOf[T] {
+      val quoteChar: Char
+      val quote: Text.Quote
+      def quoteRepr: String = quoteChar.toString * quote.asInt
+    }
     object Text {
 
       //// Definition ////
 
-      type Line[T]  = List[T]
+      type Line[T]  = LineOf[T]
       type Block[T] = List1[Line[T]]
 
       type Raw          = ASTOf[RawOf]
       type Interpolated = ASTOf[InterpolatedOf]
       type Unclosed     = ASTOf[UnclosedOf]
 
-      case class RawOf[T](quote: Quote, lines: Raw.Block[T]) extends TextOf[T] {
-        val quoteChar: Char = '"'
+      case class LineOf[+T](elem: List[T], off: Int)
+
+      case class RawOf[T](
+        off: Int,
+        lines: Raw.Block[T],
+        override val quote: Quote
+      ) extends TextOf[T] {
+        val quoteChar = '"'
       }
-      case class InterpolatedOf[T](quote: Quote, lines: Interpolated.Block[T])
-          extends TextOf[T] {
-        val quoteChar: Char = '\''
+
+      case class InterpolatedOf[T](
+        off: Int,
+        lines: Interpolated.Block[T],
+        override val quote: Quote
+      ) extends TextOf[T] {
+        val quoteChar = '\''
       }
       case class UnclosedOf[T](text: TextOf[T]) extends AST.InvalidOf[T]
 
@@ -526,9 +540,15 @@ object AST {
 
       //// Instances ////
 
+      object LineOf {
+        implicit def ftorLine:          Functor[LineOf] = semi.functor
+        implicit def reprLine[T: Repr]: Repr[LineOf[T]] = R + _.elem
+      }
+
       object RawOf {
+        def bodyRepr[T: Repr]: Repr[RawOf[T]] = t =>
+          R + t.lines.head + t.lines.tail.map(t => newline + t.off + t.elem)
         implicit def functor[T]: Functor[RawOf] = semi.functor
-        implicit def repr[T]:    Repr[RawOf[T]] = _ => ???
         implicit def offsetZip[T]: OffsetZip[RawOf, T] = t => {
           t.copy(
             lines = t.lines
@@ -537,8 +557,9 @@ object AST {
         }
       }
       object InterpolatedOf {
+        def bodyRepr[T: Repr]: Repr[InterpolatedOf[T]] = t =>
+          R + t.lines.head + t.lines.tail.map(t => newline + t.off + t.elem)
         implicit def functor[T]: Functor[InterpolatedOf] = semi.functor
-        implicit def repr[T]:    Repr[InterpolatedOf[T]] = _ => ???
         implicit def offsetZip[T]: OffsetZip[InterpolatedOf, T] = t => {
           t.copy(
             lines = t.lines
@@ -548,7 +569,8 @@ object AST {
       }
       object UnclosedOf {
         implicit def functor[T]: Functor[UnclosedOf] = semi.functor
-        implicit def repr[T]:    Repr[UnclosedOf[T]] = _ => ???
+        implicit def repr[T: Repr]: Repr[UnclosedOf[T]] = t =>
+          R + t.text.quoteRepr + TextOf.bodyRepr.repr(t.text)
         implicit def offsetZip[T]: OffsetZip[UnclosedOf, T] =
           t => t.copy(text = OffsetZip(t.text))
       }
@@ -620,6 +642,12 @@ object AST {
       }
     }
     object TextOf {
+      def bodyRepr[T: Repr]: Repr[TextOf[T]] = {
+        case t: Text.RawOf[T] => Text.RawOf.bodyRepr.repr(t)
+        case t: Text.InterpolatedOf[T] => Text.InterpolatedOf.bodyRepr.repr(t)
+      }
+      implicit def repr[T: Repr]: Repr[TextOf[T]] = t =>
+        R + t.quoteRepr + bodyRepr.repr(t) + t.quoteRepr
       implicit def offZipText[T]: OffsetZip[TextOf, T] = {
         case t: Text.RawOf[T]          => OffsetZip(t)
         case t: Text.InterpolatedOf[T] => OffsetZip(t)
