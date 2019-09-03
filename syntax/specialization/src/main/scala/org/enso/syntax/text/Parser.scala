@@ -296,7 +296,9 @@ object Main extends App {
   val parser = new Parser()
 
   val in_def_maybe =
-    """def Maybe a
+    """## Foo bar baz
+      |   Bax bag
+      |# def Maybe a
       |    def Just val:a
       |    def Nothing
     """.stripMargin
@@ -314,7 +316,7 @@ object Main extends App {
   //val inp = "(a) b = c"
   //val inp = "a = b -> c"
   //val inp = "a = b -> c d"
-  val inp = "a -> b -> c"
+  val inp = in_def_maybe
   //  val inp = "x(x[a))"
   // 48
 

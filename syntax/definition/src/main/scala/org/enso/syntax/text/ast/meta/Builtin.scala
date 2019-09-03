@@ -7,6 +7,7 @@ import org.enso.syntax.text.AST.implicits._
 import org.enso.syntax.text.AST.Macro.Definition
 import org.enso.syntax.text.AST.Opr
 import org.enso.syntax.text.AST.Var
+import org.enso.syntax.text.ast.Repr
 
 import scala.annotation.tailrec
 
@@ -201,12 +202,11 @@ object Builtin {
       ctx.body match {
         case List(s1) =>
           val stream = s1.body.toStream
-          val text   = stream.map(_.el.repr.build()).mkString("")
+          val indent = 2
+          val text   = Repr(stream).build()
           val lines  = text.split("\n").toList
-          lines match {
-            case List(l) => AST.Comment.SingleLine(text)
-            case ls      => AST.Comment.MultiLine(0, ls)
-          }
+          val lines2 = lines.head :: lines.tail.map(_.drop(indent))
+          AST.Comment.MultiLine(0, lines2)
         case _ => internalError
       }
     }
