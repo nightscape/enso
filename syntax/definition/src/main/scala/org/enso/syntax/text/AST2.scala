@@ -9,6 +9,7 @@ import org.enso.data.List1._
 import org.enso.data.List1
 import org.enso.data.Shifted
 import org.enso.data.Tree
+import org.enso.lint.Unused
 import org.enso.syntax.text.ast.Repr.R
 import org.enso.syntax.text.ast.Repr
 import org.enso.syntax.text.ast.opr
@@ -497,6 +498,7 @@ object AST {
       implicit def offsetZip[T]: OffsetZip[NumberOf, T] = t => t.coerce
       implicit def repr[T]: Repr[NumberOf[T]] =
         t => t.base.map(_ + "_").getOrElse("") + t.int
+      implicit def fromInt[T](int: Int): Number = Number(int)
     }
 
     //////////////
@@ -797,7 +799,10 @@ object AST {
       emptyLines: List[Int],
       firstLine: LineOf[AST],
       lines: List[LineOf[Option[AST]]]
-    ): Block = BlockOf(typ, indent, emptyLines, firstLine, lines)
+    ): Block = {
+      Unused(isOrphan)
+      BlockOf(typ, indent, emptyLines, firstLine, lines)
+    }
 
     def apply(
       typ: Type,
@@ -1299,26 +1304,22 @@ object AST {
     val fff3 = ASTOf(fff1): Blank
     val fff4 = fff3: AST
 
-    object TT {
-      def fooTest(t: (AST, Int)): Int = 8
-      def fooTest(t: Int):        Int = t
-    }
-    val xr1 = TT.fooTest((fff3, 5))
-
     println(fff3)
+    println(fff4)
 
     val v1   = Ident.Var("foo")
     val v1_  = v1: AST
     val opr1 = Ident.Opr("+")
     val v2   = App.Prefix(Var("x"), 10, Var("z"))
 
+    println(v1_)
     println(v1.name)
     println(opr1.assoc)
 
     val str1 = "foo": AST
+    println(str1)
 
-    val fff = fff4.map(a => a)
-    val vx  = v2: AST
+    val vx = v2: AST
     vx match {
       case Ident.Blank.any(v) => println(s"blank: $v")
       case Ident.Var.any(v)   => println(s"var: $v")

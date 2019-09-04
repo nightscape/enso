@@ -3,7 +3,6 @@ package org.enso.syntax.text.ast.meta
 import org.enso.data.List1
 import org.enso.data.Shifted
 import org.enso.syntax.text.AST
-import org.enso.syntax.text.AST.implicits._
 import org.enso.syntax.text.AST.Macro.Definition
 import org.enso.syntax.text.AST.Opr
 import org.enso.syntax.text.AST.Var
@@ -31,7 +30,6 @@ object Builtin {
       }
 
     val defn = Definition(Var("def") -> {
-      import Pattern._
       val head = Pattern.Cons().or("missing name").tag("name")
       val args =
         Pattern.NonSpacedExpr_().tag("parameter").many.tag("parameters")
@@ -45,13 +43,13 @@ object Builtin {
             case Seq(_, (namePat, Seq(_, (argsPat, bodyPat)))) =>
               val args = argsPat.toStream.map(_.el)
               val body = bodyPat.toStream match {
-                case List(Shifted(off, block: AST.Block)) => Some(block)
-                case List()                               => None
-                case _                                    => internalError
+                case List(Shifted(_, AST.Block.any(block))) => Some(block)
+                case List()                                 => None
+                case _                                      => internalError
               }
               namePat.toStream match {
-                case List(Shifted(_, n: AST.Cons)) => AST.Def(n, args, body)
-                case _                             => internalError
+                case List(Shifted(_, AST.Cons.any(n))) => AST.Def(n, args, body)
+                case _                                 => internalError
               }
             case _ => internalError
           }
@@ -140,7 +138,7 @@ object Builtin {
       ctx.body match {
         case List(s1) =>
           s1.body.toStream match {
-            case List(langAST, Shifted(_, bodyAST: AST.Block)) =>
+            case List(langAST, Shifted(_, AST.Block.any(bodyAST))) =>
               val indent     = bodyAST.indent
               val lang       = langAST.el.show()
               val body       = bodyAST.show()
@@ -183,7 +181,7 @@ object Builtin {
       ctx.body match {
         case List(s1) =>
           s1.body.toStream match {
-            case List(Shifted(_, body: AST)) =>
+            case List(Shifted(_, _)) =>
               // TODO: Ability to do parsing here
               Var(s"Save to file using ${ctx.id}")
             case _ => internalError

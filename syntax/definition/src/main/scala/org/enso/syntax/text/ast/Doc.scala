@@ -3,15 +3,13 @@ package org.enso.syntax.text.ast
 import org.enso.data.ADT
 import org.enso.data.List1
 import org.enso.syntax.text.ast.Repr.R
-
-import scala.util.Random
+import scalatags.Text.all._
 import scalatags.Text.TypedTag
 import scalatags.Text.{all => HTML}
-import HTML._
-import org.enso.syntax.text.AST
-import org.enso.syntax.text.AST.Comment
 import scalatags.generic
 import scalatags.text.Builder
+
+import scala.util.Random
 
 ////////////////////////////////////////////////////////////////////////////////
 //// Doc ///////////////////////////////////////////////////////////////////////
