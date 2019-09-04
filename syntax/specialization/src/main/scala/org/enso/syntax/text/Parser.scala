@@ -5,15 +5,10 @@ import org.enso.flexer.Reader
 import org.enso.syntax.text.ast.meta.Builtin
 import org.enso.syntax.text.prec.Macro
 import org.enso.syntax.text.spec.ParserDef
-import org.enso.syntax.text.spec.ParserDef2
 import org.enso.syntax.text.ast.meta.Pattern
 import org.enso.syntax.text.prec.Distance
 import org.enso.syntax.text.prec.Operator
 import org.enso.syntax.text.ast.opr.Prec
-//import org.enso.syntax.text.v2
-//import org.enso.syntax.text.v3
-import java.util.UUID
-import AST.implicits._
 
 import scala.annotation.tailrec
 
