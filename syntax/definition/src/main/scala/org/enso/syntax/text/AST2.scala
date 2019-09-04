@@ -1159,51 +1159,23 @@ object AST {
   //////////////////////////////////////////////////////////////////////////////
 
   type Comment = ASTOf[CommentOf]
-  sealed trait CommentOf[T] extends SpacelessASTOf[T] with Phantom
+  case class CommentOf[T](lines: List[String])
+      extends SpacelessASTOf[T]
+      with Phantom
   object Comment {
     val symbol = "#"
+    def apply(lines: List[String]): Comment = ASTOf(CommentOf(lines))
+  }
 
-    type Disable   = DisableOf[AST]
-    type MultiLine = MultiLineOf[AST]
+  //// Instances ////
 
-    case class DisableOf[T](ast: T) extends CommentOf[T]
-    case class MultiLineOf[T](off: Int, lines: List[String])
-        extends CommentOf[T]
-
-    object Disable {
-      def apply(ast: AST): Disable = DisableOf(ast)
-    }
-    object MultiLine {
-      def apply(off: Int, lines: List[String]): MultiLine =
-        MultiLineOf(off, lines)
-    }
-
-    //// Instances ////
-
-    object DisableOf {
-      implicit def functor[T]: Functor[DisableOf] = semi.functor
-      implicit def repr[T: Repr]: Repr[DisableOf[T]] =
-        R + symbol + " " + _.ast
-      // FIXME: How to make it automatic for non-spaced AST?
-      implicit def offsetZip[T]: OffsetZip[DisableOf, T] = _.map((0, _))
-    }
-    object MultiLineOf {
-      implicit def functor[T]: Functor[MultiLineOf] = semi.functor
-      implicit def repr[T]: Repr[MultiLineOf[T]] = t => {
-        val commentBlock = t.lines match {
-          case Nil => Nil
-          case line +: lines =>
-            val indentedLines = lines.map { s =>
-              if (s.forall(_ == ' ')) newline + s
-              else newline + 1 + t.off + s
-            }
-            (R + line) +: indentedLines
-        }
-        R + symbol + symbol + commentBlock
-      }
-      // FIXME: How to make it automatic for non-spaced AST?
-      implicit def offsetZip[T]: OffsetZip[MultiLineOf, T] = _.map((0, _))
-    }
+  object CommentOf {
+    import Comment._
+    implicit def functor[T]: Functor[CommentOf] = semi.functor
+    implicit def repr[T]: Repr[CommentOf[T]] =
+      R + symbol + symbol + _.lines.mkString("\n")
+    // FIXME: How to make it automatic for non-spaced AST?
+    implicit def offsetZip[T]: OffsetZip[CommentOf, T] = _.map((0, _))
   }
 
   //////////////////////////////////////////////////////////////////////////////

@@ -297,8 +297,9 @@ object Main extends App {
 
   val in_def_maybe =
     """## Foo bar baz
-      |   Bax bag
-      |# def Maybe a
+      |   bax
+      |def Maybe a
+      |    ## test
       |    def Just val:a
       |    def Nothing
     """.stripMargin

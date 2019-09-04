@@ -198,6 +198,7 @@ object Builtin {
         .many
         .fromBegin
         .or(Pattern.Any().but(Pattern.Block()).many)
+        .tag("comment")
     ) { ctx =>
       ctx.body match {
         case List(s1) =>
@@ -206,23 +207,22 @@ object Builtin {
           val text   = Repr(stream).build()
           val lines  = text.split("\n").toList
           val lines2 = lines.head :: lines.tail.map(_.drop(indent))
-          AST.Comment.MultiLine(0, lines2)
+          AST.Comment(lines2)
         case _ => internalError
       }
     }
 
-    val disableComment = Definition(
-      Opr("#") -> Pattern.Expr()
-    ) { ctx =>
-      ctx.body match {
-        case List(s1) =>
-          s1.body.toStream match {
-            case List(expr) => AST.Comment.Disable(expr.el)
-            case _          => internalError
-          }
-        case _ => internalError
+    // TODO
+    // We may want to better represent empty AST. Moreover, there should be a
+    // way to generate multiple top-level entities from macros (like multiple
+    // atom definitions). One of the solutions to consider is to make AST
+    // instance of Monoid, add a `Nothing` node, and replace all lines in a
+    // block with a `Seq` node. This would allow us here to return `Nothing`,
+    // and also return many top-level defs connected with a `Seq`.
+    val disableComment =
+      Definition(Opr("#") -> Pattern.Expr().tag("disable")) { _ =>
+        AST.Blank()
       }
-    }
 
     Registry(
       group,
