@@ -907,8 +907,8 @@ object AST {
     }
 
     object MatchOf {
-      implicit def xftor: Functor[MatchOf] = semi.functor
-      implicit def xoffZip[T: Repr]: OffsetZip[MatchOf, T] = t => {
+      implicit def functor: Functor[MatchOf] = semi.functor
+      implicit def offsetZip[T: Repr]: OffsetZip[MatchOf, T] = t => {
         var off = 0
         t.copy(segs = t.segs.map { seg =>
           OffsetZip(seg).map(_.map(_.map(s => {
@@ -918,15 +918,13 @@ object AST {
           })))
         })
       }
-      implicit def xrepr[T: Repr]: Repr[MatchOf[T]] = t => {
+      implicit def repr[T: Repr]: Repr[MatchOf[T]] = t => {
         val pfxStream = t.pfx.map(_.toStream.reverse).getOrElse(List())
         val pfxRepr   = pfxStream.map(t => R + t.el + t.off)
         val segsRepr  = t.segs.map(s => R + s.head + s.body) // FIXME: We should be able to use here the repr instance of segment
         R + pfxRepr + segsRepr
       }
     }
-    import MatchOf._
-
     object Match {
       val any = UnapplyByType[Match]
       def apply(
@@ -956,7 +954,7 @@ object AST {
 
         implicit def offZip[T: Repr]: OffsetZip[SegmentOf, T] = t => {
           t.copy(body = OffsetZip(t.body).map {
-            case (i, s) => s.map((i, _))
+            case (i, s) => s.map((i + t.head.repr.span, _))
           })
         }
       }

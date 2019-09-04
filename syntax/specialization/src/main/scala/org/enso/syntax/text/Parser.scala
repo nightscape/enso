@@ -166,10 +166,10 @@ class Parser {
     mod: AST.Module
   ): AST.Module = mod.traverseWithOff { (off, ast) =>
 //    println()
-//    println("----------")
-//    println(s">> $off (${ast.repr.span})")
-//    println(ast.repr)
-//    println(Main.pretty(ast.toString))
+    println("----------")
+    println(s">> $off (${ast.repr.span})")
+    println(ast.repr.build())
+    println(Main.pretty(ast.toString))
     idMap.get((off, ast.repr.span)) match {
       case Some(id) => ast.setID(id)
       case None =>
@@ -317,7 +317,7 @@ object Main extends App {
   //val inp = "(a) b = c"
   //val inp = "a = b -> c"
   //val inp = "a = b -> c d"
-  val inp = in_def_maybe
+  val inp = "a (b (c)) x"
   //  val inp = "x(x[a))"
   // 48
 
