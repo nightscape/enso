@@ -2,6 +2,7 @@ package org.enso.syntax.text.spec
 
 import java.io.DataInputStream
 
+import org.enso.data.List1
 import org.enso.data.VectorMap
 import org.enso.flexer
 import org.enso.flexer.Reader
@@ -288,16 +289,23 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
 
   import AST.Text.Quote
 
+  class TextState(
+    val offset: Int,
+    var lines: List[AST.Text.LineOf[AST.Text.Segment._Fmt[AST]]],
+    var lineBuilder: List[AST.Text.Segment.Fmt],
+    val quote: Quote
+  )
+
   final object text {
-    var stack: List[AST.Text.Fmtl] = Nil
+
+    import AST.Text.Segment
+
+    var stack: List[TextState] = Nil
 
     def current = stack.head
 
-    def withCurrent(f: AST.Text.Fmtl => AST.Text.Fmtl) =
-      stack = f(stack.head) :: stack.tail
-
     def push(quoteSize: Quote): Unit = logger.trace {
-      stack +:= AST.Text.InterpolatedOf(quoteSize, ???, ???)
+      stack +:= Nil
     }
 
     def pop(): Unit = logger.trace {
@@ -307,37 +315,31 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
     def submitEmpty(groupIx: State, quoteNum: Quote): Unit =
       logger.trace {
         if (groupIx == RAW)
-          result.app(AST.Text.Raw(quoteNum))
+          result.app(AST.Text.Raw(Nil, quoteNum))
         else
-          result.app(AST.Text.Fmt(quoteNum))
+          result.app(AST.Text.Fmt(Nil, quoteNum))
       }
 
     def finishCurrent(): AST.Text = logger.trace {
-      withCurrent(t => t.copy(segments = t.segments.reverse))
-      val txt = if (state.current == RAW) current.raw else current
+      val txt = current
       pop()
       state.end()
-      val singleLine = !txt.segments.contains(EOL())
-      if (singleLine || block.current.firstLine.isDefined || result.current.isDefined)
-        txt
-      else {
-        val segs =
-          AST.Text.MultiLine.stripOffset(block.current.indent, txt.segments)
-        AST.Text.MultiLine(block.current.indent, txt.quoteChar, txt.quote, segs)
-      }
+      if (state.current == RAW)
+        AST.Text.RawOf(AST.Text.Body(txt.offset, List1(txt.lines.reverse).get, txt.quote))
+      else
+        AST.Text.FmtOf(AST.Text.Body(txt.offset, List1(txt.lines.reverse).get, txt.quote))
     }
 
     def submit(): Unit = logger.trace {
       result.app(finishCurrent())
     }
 
-    def submit(segment: AST.Text.Fmt.Segment): Unit =
-      logger.trace {
-        withCurrent(_.prepend(segment))
-      }
+    def submit(segment: Segment.Fmt): Unit = logger.trace {
+      current.lineBuilder :+= segment
+    }
 
     def submitUnclosed(): Unit = logger.trace {
-      result.app(AST.Text.Unclosed(finishCurrent()))
+      result.app(AST.Text.UnclosedOf(finishCurrent()))
     }
 
     def onBegin(grp: State, quoteSize: Quote): Unit = logger.trace {
@@ -345,20 +347,18 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
       state.begin(grp)
     }
 
-    def submitPlainSegment(
-      segment: AST.Text.Fmt.Segment
-    ): Unit =
-      logger.trace {
-        withCurrent(_.prependMergeReversed(segment))
+    def submitPlainSegment(): Unit = logger.trace {
+      current.lineBuilder = current.lineBuilder match {
+        case Segment._Plain(t) :: _ =>
+          Segment._Plain(currentMatch + t) :: current.lineBuilder.tail
+        case _ => Segment._Plain(currentMatch) :: current.lineBuilder
       }
-
-    def onPlainSegment(): Unit = logger.trace {
-      submitPlainSegment(AST.Text.Segment.Plain(currentMatch))
     }
 
     def onQuote(quoteSize: Quote): Unit = logger.trace {
       if (current.quote == Quote.Triple
-          && quoteSize == Quote.Single) onPlainSegment()
+          && quoteSize == Quote.Single)
+        submitPlainSegment()
       else if (current.quote == Quote.Single
                && quoteSize == Quote.Triple) {
         val groupIx = state.current
@@ -368,40 +368,40 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
         submit()
     }
 
-    def onEscape(code: AST.Text.Segment.Escape): Unit = logger.trace {
+    def onEscape(code: Segment.Escape): Unit = logger.trace {
       submit(code)
     }
 
     def onEscapeU16(): Unit = logger.trace {
       val code = currentMatch.drop(2)
-      submit(AST.Text.Segment.Escape.Unicode.U16(code))
+      submit(Segment.Escape.Unicode.U16(code))
     }
 
     def onEscapeU32(): Unit = logger.trace {
       val code = currentMatch.drop(2)
-      submit(AST.Text.Segment.Escape.Unicode.U32(code))
+      submit(Segment.Escape.Unicode.U32(code))
     }
 
     def onEscapeInt(): Unit = logger.trace {
       val int = currentMatch.drop(1).toInt
-      submit(AST.Text.Segment.Escape.Number(int))
+      submit(Segment.Escape.Number(int))
     }
 
     def onInvalidEscape(): Unit = logger.trace {
       val str = currentMatch.drop(1)
-      submit(AST.Text.Segment.Escape.Invalid(str))
+      submit(Segment.Escape.Invalid(str))
     }
 
     def onEscapeSlash(): Unit = logger.trace {
-      submit(AST.Text.Segment.Escape.Slash)
+      submit(Segment.Escape.SimpleOf(Segment.Escape.Slash))
     }
 
     def onEscapeQuote(): Unit = logger.trace {
-      submit(AST.Text.Segment.Escape.Quote)
+      submit(Segment.Escape.SimpleOf(Segment.Escape.Quote))
     }
 
     def onEscapeRawQuote(): Unit = logger.trace {
-      submit(AST.Text.Segment.Escape.RawQuote)
+      submit(Segment.Escape.SimpleOf(Segment.Escape.RawQuote))
     }
 
     def onInterpolateBegin(): Unit = logger.trace {
@@ -413,7 +413,7 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
     def onInterpolateEnd(): Unit = logger.trace {
       if (state.isInside(INTERPOLATE)) {
         state.endTill(INTERPOLATE)
-        submit(AST.Text.Segment.Fmt(result.current))
+        submit(Segment._Expr(result.current))
         result.pop()
         off.pop()
         state.end()
@@ -427,8 +427,13 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
       rewind()
     }
 
-    def onEOL(): Unit = logger.trace {
-      submitPlainSegment(AST.Text.Segment.EOL())
+    def onNewLine(): Unit = logger.trace {
+      state.end()
+      off.pop()
+      current.lines +:= AST.Text.LineOf(off.use(), current.lineBuilder.reverse)
+      current.lineBuilder = Nil
+      off.on()
+      off.push()
     }
 
     val stringChar = noneOf("'`\"\\\n")
@@ -437,29 +442,32 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
     val escape_u16 = "\\u" >> repeat(stringChar, 0, 4)
     val escape_u32 = "\\U" >> repeat(stringChar, 0, 8)
 
-    val FMT: State        = state.define("Formatted Text")
+    val FMT: State         = state.define("Formatted Text")
     val RAW: State         = state.define("Raw Text")
+    val NEWLINE: State     = state.define("Text Newline")
     val INTERPOLATE: State = state.define("Interpolate")
     INTERPOLATE.parent = ROOT
   }
 
-  ROOT      || '`'      || reify { text.onInterpolateEnd()               }
-  text.FMT || '`'      || reify { text.onInterpolateBegin()             }
-  ROOT      || "'"      || reify { text.onBegin(text.FMT, Quote.Single) }
-  ROOT      || "'''"    || reify { text.onBegin(text.FMT, Quote.Triple) }
-  text.FMT || "'"      || reify { text.onQuote(Quote.Single)            }
-  text.FMT || "'''"    || reify { text.onQuote(Quote.Triple)            }
-  text.FMT || text.seg || reify { text.onPlainSegment()                 }
-  text.FMT || eof      || reify { text.onEOF()                          }
-  text.FMT || '\n'     || reify { text.onEOL()                          }
+  ROOT     || '`'      || reify { text.onInterpolateEnd()              }
+  text.FMT || '`'      || reify { text.onInterpolateBegin()            }
+  ROOT     || "'"      || reify { text.onBegin(text.FMT, Quote.Single) }
+  ROOT     || "'''"    || reify { text.onBegin(text.FMT, Quote.Triple) }
+  text.FMT || "'"      || reify { text.onQuote(Quote.Single)           }
+  text.FMT || "'''"    || reify { text.onQuote(Quote.Triple)           }
+  text.FMT || text.seg || reify { text.submitPlainSegment()            }
+  text.FMT || eof      || reify { text.onEOF()                         }
+  text.FMT || '\n'     || reify { state.begin(text.NEWLINE)            }
 
   ROOT     || "\""           || reify { text.onBegin(text.RAW, Quote.Single) }
   ROOT     || "\"\"\""       || reify { text.onBegin(text.RAW, Quote.Triple) }
   text.RAW || "\""           || reify { text.onQuote(Quote.Single)           }
   text.RAW || "\"\"\""       || reify { text.onQuote(Quote.Triple)           }
-  text.RAW || noneOf("\"\n") || reify { text.onPlainSegment()                }
+  text.RAW || noneOf("\"\n") || reify { text.submitPlainSegment()            }
   text.RAW || eof            || reify { text.onEOF()                         }
-  text.RAW || '\n'           || reify { text.onEOL()                         }
+  text.RAW || '\n'           || reify { state.begin(text.NEWLINE)            }
+
+  text.NEWLINE || space.opt || reify { text.onNewLine() }
 
   AST.Text.Segment.Escape.Character.codes.foreach { ctrl =>
     import scala.reflect.runtime.universe._
@@ -482,7 +490,7 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
   text.FMT || "\\'"                     || reify { text.onEscapeQuote()    }
   text.FMT || "\\\""                    || reify { text.onEscapeRawQuote() }
   text.FMT || ("\\" >> text.stringChar) || reify { text.onInvalidEscape()  }
-  text.FMT || "\\"                      || reify { text.onPlainSegment()   }
+  text.FMT || "\\"                      || reify { text.submitPlainSegment()   }
 
   //////////////
   /// Blocks ///
@@ -504,13 +512,12 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
     var emptyLines: List[Int]   = Nil
     var current: BlockState     = new BlockState(false, true, 0, Nil, None, Nil)
 
-    def push(newIndent: Int, orphan: Boolean): Unit =
-      logger.trace {
-        stack +:= current
-        current =
-          new BlockState(orphan, true, newIndent, emptyLines.reverse, None, Nil)
-        emptyLines = Nil
-      }
+    def push(newIndent: Int, orphan: Boolean): Unit = logger.trace {
+      stack +:= current
+      current =
+        new BlockState(orphan, true, newIndent, emptyLines.reverse, None, Nil)
+      emptyLines = Nil
+    }
 
     def pop(): Unit = logger.trace {
       current = stack.head
