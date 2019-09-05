@@ -463,6 +463,8 @@ object AST {
 
     object Number {
 
+      implicit def fromInt[T](int: Int): Number = Number(int)
+
       //// Smart Constructors ////
 
       def apply(i: String):            Number = Number(None, i)
@@ -498,7 +500,6 @@ object AST {
       implicit def offsetZip[T]: OffsetZip[NumberOf, T] = t => t.coerce
       implicit def repr[T]: Repr[NumberOf[T]] =
         t => t.base.map(_ + "_").getOrElse("") + t.int
-      implicit def fromInt[T](int: Int): Number = Number(int)
     }
 
     //////////////
@@ -506,64 +507,79 @@ object AST {
     //////////////
 
     type Text = ASTOf[TextOf]
-    sealed trait TextOf[T] extends ShapeOf[T]
+    sealed trait TextOf[T] extends ShapeOf[T] {
+      val body: Text.BodyOf[Text.Segment[T]]
+      val quoteChar: Char
+      def quoteRepr: String = quoteChar.toString * body.quote.asInt
+      def bodyRepr(implicit ev: Repr[T]): Repr.Builder =
+        R + body.lines.head + body.lines.tail.map(t => newline + t.off + t.elem)
+    }
+
+    object TextOf {
+      implicit def functor: Functor[TextOf] = semi.functor
+      implicit def repr[T: Repr]: Repr[TextOf[T]] =
+        t => R + t.quoteRepr + t.bodyRepr + t.quoteRepr
+      implicit def offZip[T]: OffsetZip[TextOf, T] = ???
+    }
     object Text {
+
+      def apply(body: BodyOf[Fmt.Segment[AST]]): Fmt = Fmt(body)
 
       //// Definition ////
 
-      type Line[T]  = List[T]
-      type Block[T] = List1[Line[T]]
+      type Block[+T] = List1[LineOf[T]]
 
-      type Raw          = ASTOf[RawOf]
-      type Interpolated = ASTOf[InterpolatedOf]
-      type Unclosed     = ASTOf[UnclosedOf]
+      type Raw      = ASTOf[RawOf]
+      type Fmt      = ASTOf[FmtOf]
+      type Unclosed = ASTOf[UnclosedOf]
 
-      case class RawOf[T](quote: Quote, lines: Raw.Block[T]) extends TextOf[T] {
-        val quoteChar: Char = '"'
+      case class LineOf[+T](off: Int, elem: List[T])
+
+      case class BodyOf[+T](off: Int, quote: Quote, lines: Text.Block[T])
+
+      case class RawOf[T](body: BodyOf[Raw.Segment[T]]) extends TextOf[T] {
+        val quoteChar = '"'
       }
-      case class InterpolatedOf[T](quote: Quote, lines: Interpolated.Block[T])
-          extends TextOf[T] {
-        val quoteChar: Char = '\''
+      case class FmtOf[T](body: BodyOf[Fmt.Segment[T]]) extends TextOf[T] {
+        val quoteChar = '"'
       }
       case class UnclosedOf[T](text: TextOf[T]) extends AST.InvalidOf[T]
 
-      object Raw {
-        type Segment[T] = Text.Segment._Raw[T]
-        type Line[T]    = Text.Line[Segment[T]]
-        type Block[T]   = Text.Block[Segment[T]]
+      object Body {
+        def apply[S <: Segment[AST]](q: Quote, s: S*) =
+          BodyOf(0, q, List1(LineOf(0, s.to[List])))
       }
 
-      object Interpolated {
-        type Segment[T] = Text.Segment._Interpolated[T]
-        type Line[T]    = Text.Line[Segment[T]]
+      object Raw {
+        type Segment[T] = Text.Segment._Raw[T]
         type Block[T]   = Text.Block[Segment[T]]
+
+        def apply(body: BodyOf[Segment[AST]]): Raw = ??? // RawOf(body)
+      }
+
+      object Fmt {
+        type Segment[T] = Text.Segment._Fmt[T]
+        type Block[T]   = Text.Block[Segment[T]]
+
+        def apply(body: BodyOf[Segment[AST]]): Fmt = ??? // FmtOf(body)
+      }
+
+      object Unclosed {
+        def apply(text: TextOf[AST]): Unclosed = UnclosedOf(text)
       }
 
       //// Instances ////
 
-      object RawOf {
-        implicit def functor[T]: Functor[RawOf] = semi.functor
-        implicit def repr[T]:    Repr[RawOf[T]] = _ => ???
-        implicit def offsetZip[T]: OffsetZip[RawOf, T] = t => {
-          t.copy(
-            lines = t.lines
-              .map(_.map(Segment.implicits.offZipTxtSRaw.zipWithOffset(_)))
-          )
-        }
-      }
-      object InterpolatedOf {
-        implicit def functor[T]: Functor[InterpolatedOf] = semi.functor
-        implicit def repr[T]:    Repr[InterpolatedOf[T]] = _ => ???
-        implicit def offsetZip[T]: OffsetZip[InterpolatedOf, T] = t => {
-          t.copy(
-            lines = t.lines
-              .map(_.map(Segment.implicits.offZipTxtSInt.zipWithOffset(_)))
-          )
-        }
+      object LineOf {
+        implicit def functor:       Functor[LineOf]      = semi.functor
+        implicit def repr[T: Repr]: Repr[LineOf[T]]      = R + _.elem.map(R + _)
+        implicit def offsetZip[T]:  OffsetZip[LineOf, T] = ???
+
       }
       object UnclosedOf {
         implicit def functor[T]: Functor[UnclosedOf] = semi.functor
-        implicit def repr[T]:    Repr[UnclosedOf[T]] = _ => ???
+        implicit def repr[T: Repr]: Repr[UnclosedOf[T]] =
+          t => R + t.text.quoteRepr + t.text.bodyRepr
         implicit def offsetZip[T]: OffsetZip[UnclosedOf, T] =
           t => t.copy(text = OffsetZip(t.text))
       }
@@ -585,59 +601,65 @@ object AST {
       sealed trait Segment[T]
       object Segment {
 
-        // FIXME: Compatibility mode
-        trait Escape
+        val Escape = ast.text.Escape
 
         // FIXME: Compatibility mode
-        case class EOL()
 
         //// Definition ////
 
-        type Interpolated = _Interpolated[AST]
-        type Raw          = _Raw[AST]
-        sealed trait _Interpolated[T] extends Segment[T]
-        sealed trait _Raw[T]          extends _Interpolated[T]
+        type Fmt = _Fmt[AST]
+        type Raw = _Raw[AST]
+        sealed trait _Fmt[T] extends Segment[T]
+        sealed trait _Raw[T] extends _Fmt[T]
 
         type Plain = _Plain[AST]
         type Expr  = _Expr[AST]
         case class _Plain[T](value: String)   extends _Raw[T] with Phantom
-        case class _Expr[T](value: Option[T]) extends _Interpolated[T]
+        case class _Expr[T](value: Option[T]) extends _Fmt[T]
+        trait Escape[T]                       extends Phantom // FIXME with _Fmt[T] // this makes compilation fail on out of memory!
 
         //// Instances ////
 
         object implicits extends implicits
         trait implicits {
-          implicit def reprTxtSPlain[T]: Repr[_Plain[T]] = _.value
-          implicit def reprTxtSExpr[T: Repr]: Repr[_Expr[T]] =
+          implicit def reprPlain[T]: Repr[_Plain[T]] = _.value
+          implicit def reprExpr[T: Repr]: Repr[_Expr[T]] =
             R + '`' + _.value + '`'
-          implicit def ftorTxtSPlain[T]:   Functor[_Plain]      = semi.functor
-          implicit def ftorTxtSExpr[T]:    Functor[_Expr]       = semi.functor
-          implicit def offZipTxtSExpr[T]:  OffsetZip[_Expr, T]  = _.map((0, _))
-          implicit def offZipTxtSPlain[T]: OffsetZip[_Plain, T] = t => t.coerce
-          implicit def reprTxtSRaw[T]: Repr[_Raw[T]] = {
+          implicit def ftorPlain[T]:   Functor[_Plain]      = semi.functor
+          implicit def ftorExpr[T]:    Functor[_Expr]       = semi.functor
+          implicit def offZipExpr[T]:  OffsetZip[_Expr, T]  = _.map((0, _))
+          implicit def offZipPlain[T]: OffsetZip[_Plain, T] = t => t.coerce
+          implicit def reprRaw[T]: Repr[_Raw[T]] = {
             case t: _Plain[T] => Repr(t)
           }
-          implicit def reprTxtSInt[T: Repr]: Repr[_Interpolated[T]] = {
+          implicit def reprFmt[T: Repr]: Repr[_Fmt[T]] = {
             case t: _Plain[T] => Repr(t)
             case t: _Expr[T]  => Repr(t)
+            case t: Escape[T] => ??? //Repr(t)
           }
-          implicit def ftorTxtSRaw[T]: Functor[_Raw]          = semi.functor
-          implicit def ftorTxtSInt[T]: Functor[_Interpolated] = semi.functor
-          implicit def offZipTxtSRaw[T]: OffsetZip[_Raw, T] = {
+          implicit def ftorRaw[T]: Functor[_Raw] = semi.functor
+          implicit def ftorFmt[T]: Functor[_Fmt] = semi.functor
+          implicit def offZipRaw[T]: OffsetZip[_Raw, T] = {
             case t: _Plain[T] => OffsetZip(t)
           }
-          implicit def offZipTxtSInt[T]: OffsetZip[_Interpolated, T] = {
+          implicit def offZipFmt[T]: OffsetZip[_Fmt, T] = {
             case t: _Plain[T] => OffsetZip(t)
             case t: _Expr[T]  => OffsetZip(t)
+            case t: Escape[T] => ??? //OffsetZip(t)
           }
           implicit def txtFromString[T](str: String): _Plain[T] = _Plain(str)
         }
-      }
-    }
-    object TextOf {
-      implicit def offZipText[T]: OffsetZip[TextOf, T] = {
-        case t: Text.RawOf[T]          => OffsetZip(t)
-        case t: Text.InterpolatedOf[T] => OffsetZip(t)
+
+        import implicits._
+        implicit def ftor[T]: Functor[Segment] = semi.functor
+        implicit def repr[T: Repr]: Repr[Segment[T]] = {
+          case t: _Raw[T] => Repr(t)
+          case t: _Fmt[T] => Repr(t)
+        }
+        implicit def offZip[T]: OffsetZip[Segment, T] = {
+          case t: _Raw[T] => OffsetZip(t)
+          case t: _Fmt[T] => OffsetZip(t)
+        }
       }
     }
   }

@@ -102,6 +102,8 @@ class ParserSpec extends FlatSpec with Matchers {
   //// Precedence + Associativity //////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
+  import AST.Number.fromInt
+
   "a b"            ?= ("a" $_ "b")
   "a +  b"         ?= ("a" $_ "+") $__ "b"
   "a + b + c"      ?= ("a" $_ "+" $_ "b") $_ "+" $_ "c"
@@ -160,75 +162,81 @@ class ParserSpec extends FlatSpec with Matchers {
   "16_"   ?= Number.DanglingBase("16")
   "7.5"   ?= App.Infix(7, 0, Opr("."), 0, 5)
 
-//  //////////////////////////////////////////////////////////////////////////////
-//  //// UTF Surrogates //////////////////////////////////////////////////////////
-//  //////////////////////////////////////////////////////////////////////////////
-//
-//  "\uD800\uDF1E" ?= Invalid.Unrecognized("\uD800\uDF1E")
-//
-//  //////////////////////////////////////////////////////////////////////////////
-//  //// Text ////////////////////////////////////////////////////////////////////
-//  //////////////////////////////////////////////////////////////////////////////
-//
-//  //////////////
-//  //// Text ////
-//  //////////////
-//
-////  "'"       ?= Text.Unclosed(Text())
-////  "''"      ?= Text()
-////  "'''"     ?= Text.Unclosed(Text(Text.Quote.Triple))
-////  "''''"    ?= Text.Unclosed(Text(Text.Quote.Triple, "'"))
-////  "'''''"   ?= Text.Unclosed(Text(Text.Quote.Triple, "''"))
-////  "''''''"  ?= Text(Text.Quote.Triple)
-////  "'''''''" ?= Text(Text.Quote.Triple) $ Text.Unclosed(Text())
-////  "'a'"     ?= Text("a")
-////  "'a"      ?= Text.Unclosed(Text("a"))
-////  "'a'''"   ?= Text("a") $ Text()
-////  "'''a'''" ?= Text(Text.Quote.Triple, "a")
-////  "'''a'"   ?= Text.Unclosed(Text(Text.Quote.Triple, "a'"))
-////  "'''a''"  ?= Text.Unclosed(Text(Text.Quote.Triple, "a''"))
-////
-////  "\""             ?= Text.Unclosed(Text.Raw())
-////  "\"\""           ?= Text.Raw()
-////  "\"\"\""         ?= Text.Unclosed(Text.Raw(Text.Quote.Triple))
-////  "\"\"\"\""       ?= Text.Unclosed(Text.Raw(Text.Quote.Triple, "\""))
-////  "\"\"\"\"\""     ?= Text.Unclosed(Text.Raw(Text.Quote.Triple, "\"\""))
-////  "\"\"\"\"\"\""   ?= Text.Raw(Text.Quote.Triple)
-////  "\"\"\"\"\"\"\"" ?= Text.Raw(Text.Quote.Triple) $ Text.Unclosed(Text.Raw())
-////  "\"a\""          ?= Text.Raw("a")
-////  "\"a"            ?= Text.Unclosed(Text.Raw("a"))
-////  "\"a\"\"\""      ?= Text.Raw("a") $ Text.Raw()
-////  "\"\"\"a\"\"\""  ?= Text.Raw(Text.Quote.Triple, "a")
-////  "\"\"\"a\""      ?= Text.Unclosed(Text.Raw(Text.Quote.Triple, "a\""))
-////  "\"\"\"a\"\""    ?= Text.Unclosed(Text.Raw(Text.Quote.Triple, "a\"\""))
-////
-////  "'''\nX\n Y\n'''" ?= Text.MultiLine(
-////    0,
-////    '\'',
-////    Text.Quote.Triple,
-////    List(EOL(), Plain("X"), EOL(), Plain(" Y"), EOL())
-////  )
-////
-////  //// Escapes ////
-////
-////  Text.Segment.Escape.Character.codes.foreach(i => s"'\\$i'" ?= Text(i))
-////  Text.Segment.Escape.Control.codes.foreach(i => s"'\\$i'"   ?= Text(i))
-////
-////  "'\\\\'"   ?= Text(Text.Segment.Escape.Slash)
-////  "'\\''"    ?= Text(Text.Segment.Escape.Quote)
-////  "'\\\"'"   ?= Text(Text.Segment.Escape.RawQuote)
-////  "'\\"      ?= Text.Unclosed(Text("\\"))
-////  "'\\c'"    ?= Text(Text.Segment.Escape.Invalid("c"))
-////  "'\\cd'"   ?= Text(Text.Segment.Escape.Invalid("c"), "d")
-////  "'\\123d'" ?= Text(Text.Segment.Escape.Number(123), "d")
-////
-////  //// Interpolation ////
-////
-////  "'a`b`c'" ?= Text("a", Text.Segment.Interpolation(Some("b")), "c")
-////  "'a`b 'c`d`e' f`g'" ?= {
-////    val bd = "b" $_ Text("c", Text.Segment.Interpolation(Some("d")), "e") $_ "f"
-////    Text("a", Text.Segment.Interpolation(Some(bd)), "g")
-////  }
+  //////////////////////////////////////////////////////////////////////////////
+  //// UTF Surrogates //////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+
+  "\uD800\uDF1E" ?= Invalid.Unrecognized("\uD800\uDF1E")
+
+  //////////////////////////////////////////////////////////////////////////////
+  //// Text ////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+
+  //////////////
+  //// Text ////
+  //////////////
+
+  import Text.Segment.implicits.txtFromString
+
+  val q1 = Text.Quote.Single
+  val q3 = Text.Quote.Triple
+
+
+  "'"       ?= Text.Unclosed(Text(Text.Body(q1)))
+  "''"      ?= Text(Text.Body(q1))
+  "'''"     ?= Text.Unclosed(Text(Text.Body(q3)))
+  "''''"    ?= Text.Unclosed(Text(Text.Body(q3, "'")))
+  "'''''"   ?= Text.Unclosed(Text(Text.Body(q3, "''")))
+  "''''''"  ?= Text(Text.Body(q3))
+  "'''''''" ?= Text(Text.Body(q3)) $ Text.Unclosed(Text(Text.Body(q1)))
+  "'a'"     ?= Text(Text.Body(q1, "a"))
+  "'a"      ?= Text.Unclosed(Text(Text.Body(q1, "a")))
+  "'a'''"   ?= Text(Text.Body(q1, "a")) $ Text(Text.Body(q1))
+  "'''a'''" ?= Text(Text.Body(q3, "a"))
+  "'''a'"   ?= Text.Unclosed(Text(Text.Body(q3, "a'")))
+  "'''a''"  ?= Text.Unclosed(Text(Text.Body(q3, "a''")))
+
+//  "\""             ?= Text.Unclosed(Text.Raw())
+//  "\"\""           ?= Text.Raw()
+//  "\"\"\""         ?= Text.Unclosed(Text.Raw(q3))
+//  "\"\"\"\""       ?= Text.Unclosed(Text.Raw(q3, "\""))
+//  "\"\"\"\"\""     ?= Text.Unclosed(Text.Raw(q3, "\"\""))
+//  "\"\"\"\"\"\""   ?= Text.Raw(q3)
+//  "\"\"\"\"\"\"\"" ?= Text.Raw(q3) $ Text.Unclosed(Text.Raw())
+//  "\"a\""          ?= Text.Raw("a")
+//  "\"a"            ?= Text.Unclosed(Text.Raw("a"))
+//  "\"a\"\"\""      ?= Text.Raw("a") $ Text.Raw()
+//  "\"\"\"a\"\"\""  ?= Text.Raw(q3, "a")
+//  "\"\"\"a\""      ?= Text.Unclosed(Text.Raw(q3, "a\""))
+//  "\"\"\"a\"\""    ?= Text.Unclosed(Text.Raw(q3, "a\"\""))
+
+  "'''\nX\n Y\n'''" ?= Text(Text.BodyOf(0, q3, List1(
+    Text.LineOf(0, Nil),
+    Text.LineOf(0, List("X")),
+    Text.LineOf(1, List("Y")),
+    Text.LineOf(0, Nil))))
+
+  //// Escapes ////
+
+  Text.Segment.Escape.Character.codes.foreach(i => s"'\\$i'" ?= Text(Text.Body(q1, Text.Segment.Escape.SimpleOf(i))))
+  Text.Segment.Escape.Control.codes.foreach(i => s"'\\$i'"   ?= Text(Text.Body(q1, Text.Segment.Escape.SimpleOf(i))))
+
+  "'\\\\'"   ?= Text(Text.Body(q1, Text.Segment.Escape.SimpleOf(Text.Segment.Escape.Slash)))
+  "'\\''"    ?= Text(Text.Body(q1, Text.Segment.Escape.SimpleOf(Text.Segment.Escape.Quote)))
+  "'\\\"'"   ?= Text(Text.Body(q1, Text.Segment.Escape.SimpleOf(Text.Segment.Escape.RawQuote)))
+  "'\\"      ?= Text.Unclosed(Text(Text.Body(q1, "\\")))
+  "'\\c'"    ?= Text(Text.Body(q1, Text.Segment.Escape.Invalid("c")))
+  "'\\cd'"   ?= Text(Text.Body(q1, Text.Segment.Escape.Invalid("c"), "d"))
+  "'\\123d'" ?= Text(Text.Body(q1, Text.Segment.Escape.Number(123), "d"))
+
+  //// Interpolation ////
+
+  "'a`b`c'" ?= Text(Text.Body(q1, "a", Text.Segment._Expr(Some("b")), "c"))
+  "'a`b 'c`d`e' f`g'" ?= {
+    val bd = "b" $_ Text(Text.Body(q1, "c", Text.Segment._Expr(Some("d")), "e")) $_ "f"
+    Text(Text.Body(q1, "a", Text.Segment._Expr(Some(bd)), "g"))
+  }
+
 ////  //  "'`a(`'" ?= Text(Text.Segment.Interpolated(Some("a" $ Group.Unclosed())))
 ////  //  // Comments
 //////    expr("#"              , Comment)
