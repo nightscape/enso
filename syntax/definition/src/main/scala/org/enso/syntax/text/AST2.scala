@@ -615,60 +615,62 @@ object AST {
         type Expr  = _Expr[AST]
         case class _Plain[T](value: String)   extends _Raw[T] with Phantom
         case class _Expr[T](value: Option[T]) extends _Fmt[T]
-        sealed trait Escape[T]                extends Phantom // FIXME with _Fmt[T] // this makes compilation fail on out of memory!
+        sealed trait Escape[T]                extends Phantom with _Fmt[T] // FIXME with _Fmt[T] // this makes compilation fail on out of memory!
 
         //// Instances ////
 
         object implicits extends implicits
         trait implicits {
 
-          implicit def ftorEscape:          Functor[Escape]      = semi.functor
-          implicit def reprEscape[T: Repr]: Repr[Escape[T]]      = ???
-          implicit def offzipEscape[T]:     OffsetZip[Escape, T] = ???
-
-          implicit def reprPlain[T]: Repr[_Plain[T]] = _.value
-          implicit def reprExpr[T: Repr]: Repr[_Expr[T]] =
-            R + '`' + _.value + '`'
-          implicit def ftorPlain[T]:   Functor[_Plain]      = semi.functor
-          implicit def ftorExpr[T]:    Functor[_Expr]       = semi.functor
-          implicit def offZipExpr[T]:  OffsetZip[_Expr, T]  = _.map((0, _))
-          implicit def offZipPlain[T]: OffsetZip[_Plain, T] = t => t.coerce
-          implicit def reprRaw[T]: Repr[_Raw[T]] = {
-            case t: _Plain[T] => Repr(t)
-          }
-          implicit def reprFmt[T: Repr]: Repr[_Fmt[T]] = {
-            case t: _Plain[T] => Repr(t)
-            case t: _Expr[T]  => Repr(t)
-            case t: Escape[T] => ??? //Repr(t)
-          }
-          implicit def ftorRaw[T]: Functor[_Raw] = semi.functor
-          implicit def ftorFmt[T]: Functor[_Fmt] = semi.functor
-          implicit def offZipRaw[T]: OffsetZip[_Raw, T] = {
-            case t: _Plain[T] => OffsetZip(t)
-          }
-          implicit def offZipFmt[T]: OffsetZip[_Fmt, T] = {
-            case t: _Plain[T] => OffsetZip(t)
-            case t: _Expr[T]  => OffsetZip(t)
-            case t: Escape[T] => ??? //OffsetZip(t)
-          }
+//          implicit def ftorEscape:          Functor[Escape]      = ??? //semi.functor
+//          implicit def reprEscape[T: Repr]: Repr[Escape[T]]      = ???
+//          implicit def offzipEscape[T]:     OffsetZip[Escape, T] = ???
+//
+//          implicit def reprPlain[T]: Repr[_Plain[T]] = _.value
+//          implicit def reprExpr[T: Repr]: Repr[_Expr[T]] =
+//            R + '`' + _.value + '`'
+//          implicit def ftorPlain[T]:   Functor[_Plain]      = semi.functor
+//          implicit def ftorExpr[T]:    Functor[_Expr]       = semi.functor
+//          implicit def offZipExpr[T]:  OffsetZip[_Expr, T]  = _.map((0, _))
+//          implicit def offZipPlain[T]: OffsetZip[_Plain, T] = t => t.coerce
+//          implicit def reprRaw[T]: Repr[_Raw[T]] = {
+//            case t: _Plain[T] => Repr(t)
+//          }
+//          implicit def reprFmt[T: Repr]: Repr[_Fmt[T]] = {
+//            case t: _Plain[T] => Repr(t)
+//            case t: _Expr[T]  => Repr(t)
+//            case t: Escape[T] => ??? //Repr(t)
+//          }
+//          implicit def ftorRaw[T]: Functor[_Raw] = semi.functor
+//          implicit def ftorFmt[T]: Functor[_Fmt] = semi.functor
+//          implicit def offZipRaw[T]: OffsetZip[_Raw, T] = {
+//            case t: _Plain[T] => OffsetZip(t)
+//          }
+//          implicit def offZipFmt[T]: OffsetZip[_Fmt, T] = {
+//            case t: _Plain[T] => OffsetZip(t)
+//            case t: _Expr[T]  => OffsetZip(t)
+//            case t: Escape[T] => ??? //OffsetZip(t)
+//          }
           implicit def txtFromString[T](str: String): _Plain[T] = _Plain(str)
         }
 
         import implicits._
-        implicit def ftor[T]: Functor[Segment] = semi.functor
-        implicit def repr[T: Repr]: Repr[Segment[T]] = {
-          case t: _Raw[T] => Repr(t)
-          case t: _Fmt[T] => Repr(t)
-        }
-        implicit def offZip[T]: OffsetZip[Segment, T] = {
-          case t: _Raw[T] => OffsetZip(t)
-          case t: _Fmt[T] => OffsetZip(t)
-        }
+        implicit def ftor[T]:       Functor[Segment] = ??? // semi.functor
+        implicit def repr[T: Repr]: Repr[Segment[T]] = ???
+//        {
+//          case t: _Raw[T] => Repr(t)
+//          case t: _Fmt[T] => Repr(t)
+//        }
+        implicit def offZip[T]: OffsetZip[Segment, T] = ???
+//        {
+//          case t: _Raw[T] => OffsetZip(t)
+//          case t: _Fmt[T] => OffsetZip(t)
+//        }
       }
 
       object Escape {
 
-        type Escape[T] = Segment.Escape[T]
+        import Segment.Escape
 
         type Number  = ASTOf[NumberOf]
         type Invalid = ASTOf[InvalidOf]
@@ -680,9 +682,8 @@ object AST {
           implicit def offsetZip[T]: OffsetZip[NumberOf, T] = t => t.coerce
           implicit def repr[T]:      Repr[NumberOf[T]]      = R + '\\' + _.int.toString
         }
-        case class InvalidOf[T](str: String)
-            extends Escape[T]
-            with AST.InvalidOf[T]
+        case class InvalidOf[T](str: String) extends Escape[T]
+//            with AST.InvalidOf[T]
         object Invalid {
           def apply[T](str: String): InvalidOf[T]       = InvalidOf(str)
           implicit def repr[T]:      Repr[InvalidOf[T]] = R + '\\' + _.str
@@ -692,41 +693,53 @@ object AST {
         sealed trait Unicode[T] extends Escape[T]
         object Unicode {
 
-          type U          = ASTOf[UFO]
-          type U16        = ASTOf[UFO16]
-          type U32        = ASTOf[UFO32]
-          type U21        = ASTOf[UFO21]
-          type InvalidU16 = ASTOf[InvalidUFO16]
-          type InvalidU32 = ASTOf[InvalidUFO32]
-          type InvalidU21 = ASTOf[InvalidUFO21]
+//          type U          = ASTOf[UFO]
+//          type U16        = ASTOf[UFO16]
+//          type U32        = ASTOf[UFO32]
+//          type U21        = ASTOf[UFO21]
+//          type InvalidU16 = ASTOf[InvalidUFO16]
+//          type InvalidU32 = ASTOf[InvalidUFO32]
+//          type InvalidU21 = ASTOf[InvalidUFO21]
 
-          abstract class UFO[T](val pfx: String, val sfx: String)
-              extends Unicode[T] {
+          sealed trait UFO[T] extends Escape[T] {
+            val pfx: String
+            val sfx: String
             val digits: String
           }
           object UFO {
+            implicit def functor:      Functor[UFO]      = ??? //semi.functor
+            implicit def offsetZip[T]: OffsetZip[UFO, T] = t => t.coerce
             implicit def repr[T]: Repr[UFO[T]] =
               t => R + "\\" + t.pfx + t.digits + t.sfx
           }
 
-          final case class UFO16[T] private (digits: String)
-              extends UFO[T]("u", "")
-          final case class UFO32[T] private (digits: String)
-              extends UFO[T]("U", "")
-          final case class UFO21[T] private (digits: String)
-              extends UFO[T]("u{", "}")
-
+          final case class UFO16[T] private (digits: String) extends UFO[T] {
+            val pfx = "u"
+            val sfx = ""
+          }
+          final case class UFO32[T] private (digits: String) extends UFO[T] {
+            val pfx = "U"
+            val sfx = ""
+          }
+          final case class UFO21[T] private (digits: String) extends UFO[T] {
+            val pfx = "u{"
+            val sfx = "}"
+          }
           final case class InvalidUFO16[T] private (digits: String)
-              extends UFO[T]("u", "")
-              with AST.InvalidOf[T]
-
+              extends UFO[T] {
+            val pfx = "u"
+            val sfx = ""
+          }
           final case class InvalidUFO32[T] private (digits: String)
-              extends UFO[T]("U", "")
-              with AST.InvalidOf[T]
-
+              extends UFO[T] {
+            val pfx = "U"
+            val sfx = ""
+          }
           final case class InvalidUFO21[T] private (digits: String)
-              extends UFO[T]("u{", "}")
-              with AST.InvalidOf[T]
+              extends UFO[T] {
+            val pfx = "u{"
+            val sfx = "}"
+          }
 
           object Validator {
             val hexChars = (('a' to 'f') ++ ('A' to 'F') ++ ('0' to '9')).toSet
@@ -735,7 +748,7 @@ object AST {
           }
 
           object U16 {
-            def apply[T](digits: String): Unicode[T] =
+            def apply(digits: String): Unicode[AST] =
               if (validate(digits)) UFO16(digits) else InvalidUFO16(digits)
             def validate(digits: String) = {
               import Validator._
@@ -745,7 +758,7 @@ object AST {
             }
           }
           object U32 {
-            def apply[T](digits: String): Unicode[T] =
+            def apply(digits: String): Unicode[AST] =
               if (validate(digits)) UFO32(digits) else InvalidUFO32(digits)
             def validate(digits: String) = {
               import Validator._
@@ -756,7 +769,7 @@ object AST {
             }
           }
           object U21 {
-            def apply[T](digits: String): Unicode[T] =
+            def apply(digits: String): Unicode[AST] =
               if (validate(digits)) UFO21(digits) else InvalidUFO21(digits)
             def validate(digits: String) = {
               import Validator._
@@ -767,9 +780,10 @@ object AST {
           }
         }
 
-        type Simple = ASTOf[SimpleOf]
+//        type Simple = ASTOf[SimpleOf]
 
         case class SimpleOf[T](char: CharCode) extends Escape[T]
+
         object SimpleOf {
           implicit def repr[T]: Repr[SimpleOf[T]] = R + _.char.repr
         }
@@ -779,8 +793,8 @@ object AST {
           def repr = R + '\\' + name
         }
 
-        case object Slash extends CharCode('\\') { override def repr = "\\\\" }
-        case object Quote extends CharCode('\'') { override def repr = "\\'"  }
+        case object Slash extends CharCode('\\') {override def repr = "\\\\"}
+        case object Quote extends CharCode('\'') {override def repr = "\\'"}
         case object RawQuote extends CharCode('"') {
           override def repr = "\\\""
         }
