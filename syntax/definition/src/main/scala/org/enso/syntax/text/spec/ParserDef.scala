@@ -301,33 +301,34 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
     import AST.Text.Segment
 
     var stack: List[TextState] = Nil
-
-    def current = stack.head
+    var current = new TextState(0, Nil, Nil, Quote.Single)
 
     def push(quoteSize: Quote): Unit = logger.trace {
-      stack +:= Nil
+      stack +:= current
     }
 
     def pop(): Unit = logger.trace {
+      current = stack.head
       stack = stack.tail
     }
 
-    def submitEmpty(groupIx: State, quoteNum: Quote): Unit =
-      logger.trace {
-        if (groupIx == RAW)
-          result.app(AST.Text.Raw(Nil, quoteNum))
-        else
-          result.app(AST.Text.Fmt(Nil, quoteNum))
-      }
+    def submitEmpty(groupIx: State, quoteNum: Quote): Unit = logger.trace {
+      if (groupIx == RAW)
+        result.app(AST.Text.Raw(AST.Text.Body(quoteNum)))
+      else
+        result.app(AST.Text.Fmt(AST.Text.Body(quoteNum)))
+    }
 
     def finishCurrent(): AST.Text = logger.trace {
-      val txt = current
+      onSubmitLine()
+      val t = current
+      val body = AST.Text.BodyOf(t.offset, t.quote, List1(t.lines.reverse).get)
       pop()
       state.end()
       if (state.current == RAW)
-        AST.Text.RawOf(AST.Text.Body(txt.offset, List1(txt.lines.reverse).get, txt.quote))
+        AST.Text.RawOf(body.asInstanceOf[AST.Text.BodyOf[Segment._Raw[AST]]])
       else
-        AST.Text.FmtOf(AST.Text.Body(txt.offset, List1(txt.lines.reverse).get, txt.quote))
+        AST.Text.FmtOf(body)
     }
 
     def submit(): Unit = logger.trace {
@@ -427,11 +428,15 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
       rewind()
     }
 
-    def onNewLine(): Unit = logger.trace {
-      state.end()
+    def onSubmitLine(): Unit = logger.trace {
       off.pop()
       current.lines +:= AST.Text.LineOf(off.use(), current.lineBuilder.reverse)
       current.lineBuilder = Nil
+    }
+
+    def onNewLine(): Unit = logger.trace {
+      state.end()
+      onSubmitLine()
       off.on()
       off.push()
     }

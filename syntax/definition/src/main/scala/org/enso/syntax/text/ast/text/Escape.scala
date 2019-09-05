@@ -4,8 +4,7 @@ import cats.Functor
 import cats.derived.semi
 import org.enso.data.ADT
 import org.enso.syntax.text.AST
-import org.enso.syntax.text.AST.ASTOf
-import org.enso.syntax.text.AST.OffsetZip
+import org.enso.syntax.text.AST.{ASTOf, Node, NodeOps, OffsetZip, ShapeOf}
 import org.enso.syntax.text.AST.Literal.Text.Segment.EscapeOf
 import org.enso.syntax.text.AST.Text.Segment
 import org.enso.syntax.text.ast.Repr
@@ -123,7 +122,7 @@ object Escape {
   case object RawQuote extends CharCode('"')  { override def repr = "\\\"" }
 
   // Reference: https://en.wikipedia.org/wiki/String_literal
-  sealed trait Character
+  sealed trait Character extends CharCode
   object Character {
     case object a extends CharCode('\u0007') with Character
     case object b extends CharCode('\u0008') with Character
@@ -137,7 +136,7 @@ object Escape {
   }
 
   // Reference: https://en.wikipedia.org/wiki/Control_character
-  sealed trait Control
+  sealed trait Control extends CharCode
   object Control {
     case object NUL extends CharCode(0x00) with Control
     case object SOH extends CharCode(0x01) with Control

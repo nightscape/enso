@@ -242,7 +242,7 @@ object AST {
   type Invalid = ASTOf[InvalidOf]
   trait InvalidOf[T] extends ShapeOf[T]
   object InvalidOf {
-    implicit def functor: Functor[InvalidOf] = semi.functor
+    implicit def functor: Functor[InvalidOf] = ??? // semi.functor
   }
   object Invalid {
 
@@ -494,14 +494,15 @@ object AST {
 
 
     sealed trait TextOf[T] extends ShapeOf[T] {
-      val body: Text.Body[Text.Segment[T]]
+      val body: Text.BodyOf[Text.Segment[T]]
       val quoteChar: Char
       def quoteRepr: String = quoteChar.toString * body.quote.asInt
-      def bodyRepr: Repr.Builder =
+      def bodyRepr(implicit ev: Repr[T]): Repr.Builder =
         R + body.lines.head + body.lines.tail.map(t => newline + t.off + t.elem)
     }
 
     object TextOf {
+      def nodeOps[X, T <: TextOf[X]] = NodeOps[TextOf, AST].asInstanceOf[NodeOps[T, AST]]
       implicit def functor: Functor[TextOf] = semi.functor
       implicit def repr[T: Repr]: Repr[TextOf[T]] = t =>
         R + t.quoteRepr + t.bodyRepr + t.quoteRepr
@@ -524,33 +525,42 @@ object AST {
 
       case class LineOf[+T](off: Int, elem: List[T])
 
-      case class Body[+T](off: Int, lines: Text.Block[T], quote: Text.Quote)
+      case class BodyOf[+T](off: Int, quote: Quote, lines: Text.Block[T])
 
-      case class RawOf[T](body: Body[Raw.Segment[T]]) extends TextOf[T] {
+      case class RawOf[T](body: BodyOf[Raw.Segment[T]]) extends TextOf[T] {
         val quoteChar = '"'
       }
-      case class FmtOf[T](body: Body[Fmt.Segment[T]]) extends TextOf[T] {
+      case class FmtOf[T](body: BodyOf[Fmt.Segment[T]]) extends TextOf[T] {
         val quoteChar = '"'
       }
 
       case class UnclosedOf[T](text: TextOf[T]) extends AST.InvalidOf[T]
 
+      def apply(body: BodyOf[Segment._Fmt[AST]]): Fmt = Fmt(body)
+
+      object Body {
+        def apply[S <: Segment[AST]](q: Quote, s: S*) =
+          BodyOf(0, q, List1(LineOf(0, s.to[List])))
+      }
+
       object Raw {
         type Segment[T] = Text.Segment._Raw[T]
         type Block[T]   = Text.Block[Segment[T]]
 
-        def apply(s: List[Segment[AST]]): Raw = Raw(s, Quote.Single)
-        def apply(s: List[Segment[AST]], q: Quote): Raw =
-          Node.wrap(RawOf(Body(0, List1(LineOf(0, s)), q)))(NodeOps[TextOf, AST].asInstanceOf[NodeOps[RawOf, AST]])
+        def apply(body: BodyOf[Segment[AST]]): Raw =
+          Node.wrap(RawOf(body))(TextOf.nodeOps)
       }
 
       object Fmt {
         type Segment[T] = Text.Segment._Fmt[T]
         type Block[T]   = Text.Block[Segment[T]]
 
-        def apply(s: List[Segment[AST]]): Fmt = Fmt(s, Quote.Single)
-        def apply(s: List[Segment[AST]], q: Quote): Fmt =
-          Node.wrap(FmtOf(Body(0, List1(LineOf(0, s)), q)))(NodeOps[TextOf, AST].asInstanceOf[NodeOps[FmtOf, AST]])
+        def apply(body: BodyOf[Segment[AST]]): Fmt =
+          Node.wrap(FmtOf(body))(TextOf.nodeOps)
+      }
+
+      object Unclosed {
+        def apply(text: TextOf[AST]): Unclosed = UnclosedOf(text)
       }
 
       //// Instances ////
@@ -591,7 +601,7 @@ object AST {
 
         type Escape = ASTOf[EscapeOf]
 
-        trait EscapeOf[T] extends _Raw[T] with Phantom
+        trait EscapeOf[T] extends _Fmt[T] with Phantom
 
         object EscapeOf {
           implicit def functor:      Functor[EscapeOf]      = semi.functor
@@ -615,6 +625,8 @@ object AST {
 
         object implicits extends implicits
         trait implicits {
+          implicit def fromString(s: String): _Plain[AST] = _Plain(s)
+
           implicit def reprTxtSPlain[T]: Repr[_Plain[T]] = _.value
           implicit def reprTxtSExpr[T: Repr]: Repr[_Expr[T]] =
             R + '`' + _.value + '`'
