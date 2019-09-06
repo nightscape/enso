@@ -181,7 +181,6 @@ class ParserSpec extends FlatSpec with Matchers {
   val q1 = Text.Quote.Single
   val q3 = Text.Quote.Triple
 
-
   "'"       ?= Text.Unclosed(Text(Text.Body(q1)))
   "''"      ?= Text(Text.Body(q1))
   "'''"     ?= Text.Unclosed(Text(Text.Body(q3)))
@@ -196,34 +195,54 @@ class ParserSpec extends FlatSpec with Matchers {
   "'''a'"   ?= Text.Unclosed(Text(Text.Body(q3, "a'")))
   "'''a''"  ?= Text.Unclosed(Text(Text.Body(q3, "a''")))
 
-//  "\""             ?= Text.Unclosed(Text.Raw())
-//  "\"\""           ?= Text.Raw()
-//  "\"\"\""         ?= Text.Unclosed(Text.Raw(q3))
-//  "\"\"\"\""       ?= Text.Unclosed(Text.Raw(q3, "\""))
-//  "\"\"\"\"\""     ?= Text.Unclosed(Text.Raw(q3, "\"\""))
-//  "\"\"\"\"\"\""   ?= Text.Raw(q3)
-//  "\"\"\"\"\"\"\"" ?= Text.Raw(q3) $ Text.Unclosed(Text.Raw())
-//  "\"a\""          ?= Text.Raw("a")
-//  "\"a"            ?= Text.Unclosed(Text.Raw("a"))
-//  "\"a\"\"\""      ?= Text.Raw("a") $ Text.Raw()
-//  "\"\"\"a\"\"\""  ?= Text.Raw(q3, "a")
-//  "\"\"\"a\""      ?= Text.Unclosed(Text.Raw(q3, "a\""))
-//  "\"\"\"a\"\""    ?= Text.Unclosed(Text.Raw(q3, "a\"\""))
+  "\""            ?= Text.Unclosed(Text.Raw(Text.Body(q1)))
+  "\"\""          ?= Text.Raw(Text.Body(q1))
+  "\"\"\""        ?= Text.Unclosed(Text.Raw(Text.Body(q3)))
+  "\"\"\"\""      ?= Text.Unclosed(Text.Raw(Text.Body(q3, "\"")))
+  "\"\"\"\"\""    ?= Text.Unclosed(Text.Raw(Text.Body(q3, "\"\"")))
+  "\"\"\"\"\"\""  ?= Text.Raw(Text.Body(q3))
+  "\"a\""         ?= Text.Raw(Text.Body(q1, "a"))
+  "\"a"           ?= Text.Unclosed(Text.Raw(Text.Body(q1, "a")))
+  "\"a\"\"\""     ?= Text.Raw(Text.Body(q1, "a")) $ Text.Raw(Text.Body(q1))
+  "\"\"\"a\"\"\"" ?= Text.Raw(Text.Body(q3, "a"))
+  "\"\"\"a\""     ?= Text.Unclosed(Text.Raw(Text.Body(q3, "a\"")))
+  "\"\"\"a\"\""   ?= Text.Unclosed(Text.Raw(Text.Body(q3, "a\"\"")))
+  "\"\"\"\"\"\"\"" ?= Text.Raw(Text.Body(q3)) $ Text.Unclosed(
+    Text.Raw(Text.Body(q1))
+  )
 
-  "'''\nX\n Y\n'''" ?= Text(Text.BodyOf(0, q3, List1(
-    Text.LineOf(0, Nil),
-    Text.LineOf(0, List("X")),
-    Text.LineOf(1, List("Y")),
-    Text.LineOf(0, Nil))))
+  "'''\nX\n Y\n'''" ?= Text(
+    Text.BodyOf(
+      0,
+      q3,
+      List1(
+        Text.LineOf(0, Nil),
+        Text.LineOf(0, List("X")),
+        Text.LineOf(1, List("Y")),
+        Text.LineOf(0, Nil)
+      )
+    )
+  )
+
 
   //// Escapes ////
 
-  Text.Segment.Escape.Character.codes.foreach(i => s"'\\$i'" ?= Text(Text.Body(q1, Text.Segment.Escape.SimpleOf(i))))
-  Text.Segment.Escape.Control.codes.foreach(i => s"'\\$i'"   ?= Text(Text.Body(q1, Text.Segment.Escape.SimpleOf(i))))
+  Text.Segment.Escape.Character.codes.foreach(
+    i => s"'\\$i'" ?= Text(Text.Body(q1, Text.Segment.Escape.SimpleOf(i)))
+  )
+  Text.Segment.Escape.Control.codes.foreach(
+    i => s"'\\$i'" ?= Text(Text.Body(q1, Text.Segment.Escape.SimpleOf(i)))
+  )
 
-  "'\\\\'"   ?= Text(Text.Body(q1, Text.Segment.Escape.SimpleOf(Text.Segment.Escape.Slash)))
-  "'\\''"    ?= Text(Text.Body(q1, Text.Segment.Escape.SimpleOf(Text.Segment.Escape.Quote)))
-  "'\\\"'"   ?= Text(Text.Body(q1, Text.Segment.Escape.SimpleOf(Text.Segment.Escape.RawQuote)))
+  "'\\\\'" ?= Text(
+    Text.Body(q1, Text.Segment.Escape.SimpleOf(Text.Segment.Escape.Slash))
+  )
+  "'\\''" ?= Text(
+    Text.Body(q1, Text.Segment.Escape.SimpleOf(Text.Segment.Escape.Quote))
+  )
+  "'\\\"'" ?= Text(
+    Text.Body(q1, Text.Segment.Escape.SimpleOf(Text.Segment.Escape.RawQuote))
+  )
   "'\\"      ?= Text.Unclosed(Text(Text.Body(q1, "\\")))
   "'\\c'"    ?= Text(Text.Body(q1, Text.Segment.Escape.Invalid("c")))
   "'\\cd'"   ?= Text(Text.Body(q1, Text.Segment.Escape.Invalid("c"), "d"))

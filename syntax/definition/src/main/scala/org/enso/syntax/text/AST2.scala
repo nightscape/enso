@@ -521,7 +521,10 @@ object AST {
       implicit def functor: Functor[TextOf] = semi.functor
       implicit def repr[T: Repr]: Repr[TextOf[T]] =
         t => R + t.quoteRepr + t.bodyRepr + t.quoteRepr
-      implicit def offzip[T]: OffsetZip[TextOf, T] = ???
+      implicit def offzip[T]: OffsetZip[TextOf, T] = {
+        case t: Text.RawOf[T] => OffsetZip(t)
+        case t: Text.FmtOf[T] => OffsetZip(t)
+      }
     }
     object Text {
 
@@ -545,7 +548,7 @@ object AST {
         val quoteChar = '"'
       }
       case class FmtOf[T](body: BodyOf[Fmt.Segment[T]]) extends TextOf[T] {
-        val quoteChar = '"'
+        val quoteChar = '\''
       }
       case class UnclosedOf[T](text: TextOf[T]) extends AST.InvalidOf[T]
 

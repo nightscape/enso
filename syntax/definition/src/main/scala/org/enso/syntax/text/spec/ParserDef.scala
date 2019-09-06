@@ -302,7 +302,7 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
     var stack: List[TextState] = Nil
     var current                = new TextState(0, Nil, Nil, Quote.Single)
 
-    def push(quoteSize: Quote): Unit = logger.trace {
+    def push(): Unit = logger.trace {
       stack +:= current
     }
 
@@ -320,14 +320,16 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
 
     def finishCurrent(): AST.Text = logger.trace {
       onSubmitLine()
-      val t    = current
-      val body = AST.Text.BodyOf(t.offset, t.quote, List1(t.lines.reverse).get)
+      val t     = current
+      val body  = AST.Text.BodyOf(t.offset, t.quote, List1(t.lines.reverse).get)
+      val isRaw = state.current == RAW
       pop()
+      off.pop()
       state.end()
-//      if (state.current == RAW)
-      AST.Text.Raw(body.asInstanceOf[AST.Text.BodyOf[Segment._Raw[AST]]])
-//      else
-//        AST.Text.Fmt(body)
+      if (isRaw)
+        AST.Text.Raw(body.asInstanceOf[AST.Text.BodyOf[Segment._Raw[AST]]])
+      else
+        AST.Text.Fmt(body)
     }
 
     def submit(): Unit = logger.trace {
@@ -335,7 +337,7 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
     }
 
     def submit(segment: Segment.Fmt): Unit = logger.trace {
-      current.lineBuilder :+= segment
+      current.lineBuilder +:= segment
     }
 
     def submitUnclosed(): Unit = logger.trace {
@@ -343,14 +345,17 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
     }
 
     def onBegin(grp: State, quoteSize: Quote): Unit = logger.trace {
-      push(quoteSize)
+      push()
+      off.push()
+      off.push()
+      current = new TextState(block.current.indent, Nil, Nil, quoteSize)
       state.begin(grp)
     }
 
     def submitPlainSegment(): Unit = logger.trace {
       current.lineBuilder = current.lineBuilder match {
         case Segment._Plain(t) :: _ =>
-          Segment.Plain(currentMatch + t) :: current.lineBuilder.tail
+          Segment.Plain(t + currentMatch) :: current.lineBuilder.tail
         case _ => Segment.Plain(currentMatch) :: current.lineBuilder
       }
     }
