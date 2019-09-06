@@ -297,7 +297,7 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
 
   final object text {
 
-    import AST.Text.Segment
+    val Segment = AST.Text.Segment
 
     var stack: List[TextState] = Nil
     var current                = new TextState(0, Nil, Nil, Quote.Single)
@@ -324,10 +324,10 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
       val body = AST.Text.BodyOf(t.offset, t.quote, List1(t.lines.reverse).get)
       pop()
       state.end()
-      if (state.current == RAW)
-        AST.Text.RawOf(body.asInstanceOf[AST.Text.BodyOf[Segment._Raw[AST]]])
-      else
-        AST.Text.FmtOf(body)
+//      if (state.current == RAW)
+      AST.Text.Raw(body.asInstanceOf[AST.Text.BodyOf[Segment._Raw[AST]]])
+//      else
+//        AST.Text.Fmt(body)
     }
 
     def submit(): Unit = logger.trace {
@@ -350,8 +350,8 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
     def submitPlainSegment(): Unit = logger.trace {
       current.lineBuilder = current.lineBuilder match {
         case Segment._Plain(t) :: _ =>
-          Segment._Plain(currentMatch + t) :: current.lineBuilder.tail
-        case _ => Segment._Plain(currentMatch) :: current.lineBuilder
+          Segment.Plain(currentMatch + t) :: current.lineBuilder.tail
+        case _ => Segment.Plain(currentMatch) :: current.lineBuilder
       }
     }
 
@@ -393,15 +393,15 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
     }
 
     def onEscapeSlash(): Unit = logger.trace {
-      submit(Segment.Escape.SimpleOf(Segment.Escape.Slash))
+      submit(Segment.Escape.Simple(Segment.Escape.Slash))
     }
 
     def onEscapeQuote(): Unit = logger.trace {
-      submit(Segment.Escape.SimpleOf(Segment.Escape.Quote))
+      submit(Segment.Escape.Simple(Segment.Escape.Quote))
     }
 
     def onEscapeRawQuote(): Unit = logger.trace {
-      submit(Segment.Escape.SimpleOf(Segment.Escape.RawQuote))
+      submit(Segment.Escape.Simple(Segment.Escape.RawQuote))
     }
 
     def onInterpolateBegin(): Unit = logger.trace {
@@ -413,7 +413,7 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
     def onInterpolateEnd(): Unit = logger.trace {
       if (state.isInside(INTERPOLATE)) {
         state.endTill(INTERPOLATE)
-        submit(Segment._Expr(result.current))
+        submit(Segment.Expr(result.current))
         result.pop()
         off.pop()
         state.end()
@@ -473,18 +473,19 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
 
   text.NEWLINE || space.opt || reify { text.onNewLine() }
 
-  AST.Text.Segment.Escape.Character.codes.foreach { ctrl =>
+  AST.Text.Segment.Escape.Character.codes.foreach { code =>
     import scala.reflect.runtime.universe._
-    val name = TermName(ctrl.toString)
-    val func = q"text.onEscape(AST.Text.Segment.Escape.Character.$name)"
-    text.FMT || s"\\$ctrl" || func
+    val name = TermName(code.toString)
+    val char =
+      q"text.Segment.Escape.Simple(text.Segment.Escape.Character.$name)"
+    text.FMT || s"\\$code" || q"text.onEscape($char)"
   }
 
-  AST.Text.Segment.Escape.Control.codes.foreach { ctrl =>
+  AST.Text.Segment.Escape.Control.codes.foreach { code =>
     import scala.reflect.runtime.universe._
-    val name = TermName(ctrl.toString)
-    val func = q"text.onEscape(AST.Text.Segment.Escape.Control.$name)"
-    text.FMT || s"\\$ctrl" || func
+    val name = TermName(code.toString)
+    val ctrl = q"text.Segment.Escape.Simple(text.Segment.Escape.Control.$name)"
+    text.FMT || s"\\$code" || q"text.onEscape($ctrl)"
   }
 
   text.FMT || text.escape_u16           || reify { text.onEscapeU16()        }
