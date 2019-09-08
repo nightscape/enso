@@ -31,20 +31,94 @@ object AST {
   //// Definition //////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
+  /** =AST=
+    *
+    * AST is encoded as a simple recursion scheme. See the following links to
+    * learn more about the concept:
+    * - https://wiki.haskell.org/Catamorphisms
+    * - https://www.schoolofhaskell.com/user/edwardk/recursion-schemes/catamorphisms
+    * - https://www.schoolofhaskell.com/user/bartosz/understanding-algebras
+    * - http://hackage.haskell.org/package/free-5.1.2/docs/Control-Comonad-Cofree.html
+    * - https://www.47deg.com/blog/basic-recursion-schemes-in-scala/
+    *
+    * ==AST Shape==
+    *
+    * Every AST node like [[Ident.Var]] or [[App.Prefix]] defines a shape of its
+    * subtree. Shapes extend [[ShapeOf]], are parametrized with a child type,
+    * and follow a simple naming convention - their name is the same as the AST
+    * node name with an additional prefix "Of", like [[Ident.VarOf]], or
+    * [[App.PrefixOf]]. Shapes contain information about names of children and
+    * spacing between them, for example, the [[App.PrefixOf]] shape contains
+    * reference to function being its first child ([[App.PrefixOf.fn]]), spacing
+    * between the function and its argument ([[App.PrefixOf.off]]), and the
+    * argument itself ([[App.PrefixOf.arg]]).
+    *
+    * ==[[ASTOf]] as Catamorphism==
+    *
+    * In order to keep the types simple and make the inference predictive, we
+    * are not using standard catamorphism implementations. Instead, we have
+    * implemented a simple recursion scheme in [[ASTOf]]. Every AST node uses it
+    * as the wrapping layer. For example, the most generic AST type, [[AST]] is
+    * defined just as an alias to [[(ASTOf[ShapeOf])]]. Every AST node follows
+    * the same scheme, including [[Ident.Var]] being an alias to
+    * [[(ASTOf[Ident.VarOf])]], or [[App.Prefix]] being an alias to
+    * [[(ASTOf[App.PrefixOf])]].
+    *
+    * ==[[ASTOf]] as Cofree==
+    *
+    * [[ASTOf]] adds a layer of additional information to each AST node.
+    * Currently, the information is just an optional [[ID]], however, it may
+    * grow in the future. This design minimizes the necessary boilerplate in
+    * storing repeatable information across AST. Moreover, we can easily make
+    * [[ASTOf]] polymorphic and allow the Syntax Tree to be tagged with
+    * different information in different compilation stages if necessary.
+    *
+    * ==[[ASTOf]] as Cache Layer==
+    *
+    * When wrapping an element, [[ASTOf]] requires the element to implement
+    * several type classes, including:
+    * - [[Functor]]   - Defines mapping over every element in a shape.
+    * - [[Repr]]      - Defines shape to code translation.
+    * - [[OffsetZip]] - Zips every shape element with offset from the left side
+    *                   of the shape.
+    *
+    * [[ASTOf]] caches access to
+    *
+    *
+    * ==Fields Access==
+    *
+    * Please note, that [[ASTOf]] is "transparent". There are
+    * implicit defs of both wrapping and unwrapping functions, which makes
+    * working with AST nodes very convenient. For example, there is no need to
+    * write `myVar.shape.name` to first unpack the node from the [[ASTOf]] layer
+    * and then access its name. It's possible to just write `myVar.name`, and
+    * the unpacking will be performed automatically.
+    *
+    * ==Pattern Matching==
+    *
+    * Please note that due to type erasure, it is impossible to pattern match on
+    * AST types. Never use `case _: Var => ...` statement, as it will probably
+    * crash at runtime. In order to pattern match on AST type, each AST node
+    * provides a special "any" matcher, which results in a type narrowed version
+    * of the AST node. For example, `case Var.any(v) => ...` will succeed if the
+    * match was performed on any [[Ident.Var]] and its result `v` will be of
+    * [[Ident.Var]] type. Of course, it is possible to use structural matching
+    * without any restrictions.
+    */
   //// Structure ////
 
-  type AST_Type = ASTOf[ShapeOf]
-//  type ASTOf[T[_]] = Node[T]
+  sealed trait ShapeOf[T]
   type Shape = ShapeOf[AST]
+  type _AST  = ASTOf[ShapeOf]
 
   //// Aliases ////
 
-  type SAST        = Shifted[AST]
-  type StreamOf[T] = List[Shifted[T]]
-  type _Stream1[T] = List1[Shifted[T]]
-  type Stream      = StreamOf[AST]
-  type Stream1     = _Stream1[AST]
-  type ID          = UUID
+  type SAST         = Shifted[AST]
+  type StreamOf[T]  = List[Shifted[T]]
+  type StreamOf1[T] = List1[Shifted[T]]
+  type Stream       = StreamOf[AST]
+  type Stream1      = StreamOf1[AST]
+  type ID           = UUID
 
   //// API ////
 
@@ -224,17 +298,6 @@ object AST {
       t.mapWithOff((off, ast) => go(off, f(off, ast)))
     }
   }
-
-  //////////////////////////////////////////////////////////////////////////////
-  //// Shape ///////////////////////////////////////////////////////////////////
-  //////////////////////////////////////////////////////////////////////////////
-
-  /** [[Shape]] defines the shape of an AST node. It contains information about
-    * the layout of elements and spacing between them.
-    *
-    * @tparam T The type of elements.
-    */
-  sealed trait ShapeOf[T]
 
   //////////////////////////////////////////////////////////////////////////////
   //// Phantom /////////////////////////////////////////////////////////////////

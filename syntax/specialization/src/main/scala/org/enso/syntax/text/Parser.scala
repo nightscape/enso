@@ -201,9 +201,8 @@ class Parser {
       case _ => ast.map(resolveMacros)
     }
 
-  /** Drops macros metadata keeping only resolved macros in the AST. Please
-    * remember that this operation drops the information about AST spacing as
-    * well.
+  /** Drops macros metadata keeping only resolved macros in the AST.
+    * WARNING: this transformation drops the information about AST spacing.
     */
   def dropMacroMeta(ast: AST.Module): AST.Module = {
     def go: AST => AST = {
