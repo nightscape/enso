@@ -161,10 +161,10 @@ class Parser {
     mod: AST.Module
   ): AST.Module = mod.traverseWithOff { (off, ast) =>
 //    println()
-    println("----------")
-    println(s">> $off (${ast.repr.span})")
-    println(ast.repr.build())
-    println(Main.pretty(ast.toString))
+//    println("----------")
+//    println(s">> $off (${ast.repr.span})")
+//    println(ast.repr.build())
+//    println(Main.pretty(ast.toString))
     idMap.get((off, ast.repr.span)) match {
       case Some(id) => ast.setID(id)
       case None =>

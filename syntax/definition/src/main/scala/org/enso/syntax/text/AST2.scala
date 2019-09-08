@@ -152,6 +152,8 @@ object AST {
         else if (str.head.isUpper) Cons(str)
         else Opr(str)
       }
+
+      implicit def intToAST(int: Int): AST = Literal.Number(int)
     }
   }
 
