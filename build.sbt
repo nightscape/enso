@@ -13,7 +13,8 @@ scalaVersion in ThisBuild := scalacVersion
 //// Compiler Options ////
 //////////////////////////
 
-javacOptions in ThisBuild ++= Seq("-J-Xss4M")
+//javacOptions in ThisBuild ++= Seq("-J-Xss4M")
+//Compile / compile / fork := true
 scalacOptions in ThisBuild ++= Seq(
   "-deprecation",                      // Emit warning and location for usages of deprecated APIs.
   "-encoding",                         // Provide explicit encoding (the next line)
