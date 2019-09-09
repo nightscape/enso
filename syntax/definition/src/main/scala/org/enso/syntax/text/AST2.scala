@@ -621,7 +621,8 @@ object AST {
       sealed trait Segment[T]
       object Segment {
 
-        // FIXME: Compatibility mode
+        type Escape = ast.text.Escape
+        val Escape = ast.text.Escape
 
         //// Definition ////
 
@@ -630,11 +631,9 @@ object AST {
         sealed trait _Fmt[T] extends Segment[T]
         sealed trait _Raw[T] extends _Fmt[T] with Phantom
 
-        type Plain = _Plain[AST]
-        type Expr  = _Expr[AST]
-        case class _Plain[T](value: String)   extends _Raw[T]
-        case class _Expr[T](value: Option[T]) extends _Fmt[T]
-        sealed trait Escape[T]                extends _Fmt[T] with Phantom
+        final case class _Plain[T](value: String)   extends _Raw[T]
+        final case class _Expr[T](value: Option[T]) extends _Fmt[T]
+        final case class _Escape[T](code: Escape)   extends _Fmt[T] with Phantom
 
         object Expr {
           def apply(t: Option[AST]): Fmt = _Expr(t)
@@ -648,19 +647,10 @@ object AST {
         object implicits extends implicits
         trait implicits {
 
-          implicit def ftorEscape: Functor[Escape] = semi.functor
-          implicit def reprEscape[T: Repr]: Repr[Escape[T]] = {
-            case t: Escape.NumberOf[T]  => Repr(t)
-            case t: Escape.SimpleOf[T]  => Repr(t)
-            case t: Escape.Unicode[T]   => Repr(t)
-            case t: Escape.InvalidOf[T] => Repr(t)
-          }
-          implicit def offzipEscape[T]: OffsetZip[Escape, T] = {
-            case t: Escape.NumberOf[T]  => OffsetZip(t)
-            case t: Escape.SimpleOf[T]  => OffsetZip(t)
-            case t: Escape.Unicode[T]   => OffsetZip(t)
-            case t: Escape.InvalidOf[T] => OffsetZip(t)
-          }
+          implicit def ftorEscape: Functor[_Escape] = semi.functor
+          implicit def reprEscape[T: Repr]: Repr[_Escape[T]] =
+            t => R + ("\\" + t.code.repr)
+          implicit def offzipEscape[T]: OffsetZip[_Escape, T] = t => t.coerce
 
           implicit def reprPlain[T]: Repr[_Plain[T]] = _.value
           implicit def reprExpr[T: Repr]: Repr[_Expr[T]] =
@@ -675,7 +665,7 @@ object AST {
           implicit def reprFmt[T: Repr]: Repr[_Fmt[T]] = {
             case t: _Plain[T] => Repr(t)
             case t: _Expr[T]  => Repr(t)
-            case t: Escape[T] => Repr(t)
+            case t: _Escape[T] => Repr(t)
           }
           implicit def ftorRaw[T]: Functor[_Raw] = semi.functor
           implicit def ftorFmt[T]: Functor[_Fmt] = semi.functor
@@ -685,7 +675,7 @@ object AST {
           implicit def offZipFmt[T]: OffsetZip[_Fmt, T] = {
             case t: _Plain[T] => OffsetZip(t)
             case t: _Expr[T]  => OffsetZip(t)
-            case t: Escape[T] => OffsetZip(t)
+            case t: _Escape[T] => OffsetZip(t)
           }
           implicit def txtFromString[T](str: String): _Plain[T] = _Plain(str)
         }
@@ -699,199 +689,6 @@ object AST {
         implicit def offZip[T]: OffsetZip[Segment, T] = {
           case t: _Raw[T] => OffsetZip(t)
           case t: _Fmt[T] => OffsetZip(t)
-        }
-
-        object Escape {
-
-          type Number  = ASTOf[NumberOf]
-          type Invalid = ASTOf[InvalidOf]
-
-          case class NumberOf[T](int: Int) extends Escape[T]
-          object Number { def apply(int: Int) = NumberOf[AST](int) }
-
-          object NumberOf {
-            implicit def functor:   Functor[NumberOf]      = semi.functor
-            implicit def offzip[T]: OffsetZip[NumberOf, T] = t => t.coerce
-            implicit def repr[T]:   Repr[NumberOf[T]]      = R + '\\' + _.int.toString
-          }
-
-          case class InvalidOf[T](str: String) extends Escape[T]
-//            with AST.InvalidOf[T]
-          object Invalid { def apply(str: String) = InvalidOf[AST](str) }
-          object InvalidOf {
-            implicit def functor:   Functor[InvalidOf]      = semi.functor
-            implicit def offzip[T]: OffsetZip[InvalidOf, T] = t => t.coerce
-            implicit def repr[T]:   Repr[InvalidOf[T]]     = R + '\\' + _.str
-          }
-
-          // Reference: https://en.wikipedia.org/wiki/String_literal
-          sealed trait Unicode[T] extends Escape[T]
-          object Unicode {
-
-//          type U          = ASTOf[UFO]
-//          type U16        = ASTOf[UFO16]
-//          type U32        = ASTOf[UFO32]
-//          type U21        = ASTOf[UFO21]
-//          type InvalidU16 = ASTOf[InvalidUFO16]
-//          type InvalidU32 = ASTOf[InvalidUFO32]
-//          type InvalidU21 = ASTOf[InvalidUFO21]
-
-            implicit def functor: Functor[Unicode] = semi.functor
-            implicit def offzip[T]: OffsetZip[Unicode, T] = {
-              case t: UFO[T]       => OffsetZip(t)
-              case t: InvalidOf[T] => t.coerce
-            }
-            implicit def repr[T]: Repr[Unicode[T]] = {
-              case t: UFO[T]       => Repr(t)
-              case t: InvalidOf[T] => Repr(t.unicode)
-            }
-
-            sealed trait UFO[T] extends Unicode[T] {
-              val pfx: String
-              val sfx: String
-              val digits: String
-            }
-            object UFO {
-              implicit def functor:      Functor[UFO]      = semi.functor
-              implicit def offsetZip[T]: OffsetZip[UFO, T] = t => t.coerce
-              implicit def repr[T]: Repr[UFO[T]] =
-                t => R + "\\" + t.pfx + t.digits + t.sfx
-            }
-
-            final case class UFO16[T] private (digits: String) extends UFO[T] {
-              val pfx = "u"
-              val sfx = ""
-            }
-            final case class UFO32[T] private (digits: String) extends UFO[T] {
-              val pfx = "U"
-              val sfx = ""
-            }
-            final case class UFO21[T] private (digits: String) extends UFO[T] {
-              val pfx = "u{"
-              val sfx = "}"
-            }
-            final case class InvalidOf[T](unicode: UFO[T]) extends Unicode[T]
-
-            object Validator {
-              val hexChars =
-                (('a' to 'f') ++ ('A' to 'F') ++ ('0' to '9')).toSet
-              def isHexChar(char: Char) =
-                hexChars.contains(char)
-            }
-
-            object U16 {
-              def apply(digits: String): Unicode[AST] =
-                if (validate(digits)) UFO16(digits)
-                else InvalidOf(UFO16(digits))
-              def validate(digits: String) = {
-                import Validator._
-                val validLength = digits.length == 4
-                val validChars  = digits.forall(isHexChar)
-                validLength && validChars
-              }
-            }
-            object U32 {
-              def apply(digits: String): Unicode[AST] =
-                if (validate(digits)) UFO32(digits)
-                else InvalidOf(UFO32(digits))
-              def validate(digits: String) = {
-                import Validator._
-                val validLength = digits.length == 8
-                val validPrefix = digits.startsWith("00")
-                val validChars  = digits.forall(isHexChar)
-                validLength && validPrefix && validChars
-              }
-            }
-            object U21 {
-              def apply(digits: String): Unicode[AST] =
-                if (validate(digits)) UFO21(digits)
-                else InvalidOf(UFO21(digits))
-              def validate(digits: String) = {
-                import Validator._
-                val validLength = digits.length >= 1 && digits.length <= 6
-                val validChars  = digits.forall(isHexChar)
-                validLength && validChars
-              }
-            }
-          }
-
-//        type Simple = ASTOf[SimpleOf]
-
-          case class SimpleOf[T](char: CharCode) extends Escape[T]
-
-          object Simple { def apply(char: CharCode) = SimpleOf[AST](char) }
-
-          object SimpleOf {
-            implicit def functor:   Functor[SimpleOf]      = semi.functor
-            implicit def repr[T]:   Repr[SimpleOf[T]]      = R + _.char.repr
-            implicit def offzip[T]: OffsetZip[SimpleOf, T] = t => t.coerce
-          }
-
-          abstract class CharCode(val code: Int) {
-            def name = toString
-            def repr = R + '\\' + name
-          }
-
-          case object Slash extends CharCode('\\') {
-            override def repr = "\\\\"
-          }
-          case object Quote extends CharCode('\'') { override def repr = "\\'" }
-          case object RawQuote extends CharCode('"') {
-            override def repr = "\\\""
-          }
-
-          // Reference: https://en.wikipedia.org/wiki/String_literal
-          sealed trait Character extends CharCode
-          object Character {
-            case object a extends CharCode('\u0007') with Character
-            case object b extends CharCode('\u0008') with Character
-            case object f extends CharCode('\u000C') with Character
-            case object n extends CharCode('\n') with Character
-            case object r extends CharCode('\r') with Character
-            case object t extends CharCode('\u0009') with Character
-            case object v extends CharCode('\u000B') with Character
-            case object e extends CharCode('\u001B') with Character
-            val codes = ADT.constructors[Character]
-          }
-
-          // Reference: https://en.wikipedia.org/wiki/Control_character
-          sealed trait Control extends CharCode
-          object Control {
-            case object NUL extends CharCode(0x00) with Control
-            case object SOH extends CharCode(0x01) with Control
-            case object STX extends CharCode(0x02) with Control
-            case object ETX extends CharCode(0x03) with Control
-            case object EOT extends CharCode(0x04) with Control
-            case object ENQ extends CharCode(0x05) with Control
-            case object ACK extends CharCode(0x06) with Control
-            case object BEL extends CharCode(0x07) with Control
-            case object BS  extends CharCode(0x08) with Control
-            case object TAB extends CharCode(0x09) with Control
-            case object LF  extends CharCode(0x0A) with Control
-            case object VT  extends CharCode(0x0B) with Control
-            case object FF  extends CharCode(0x0C) with Control
-            case object CR  extends CharCode(0x0D) with Control
-            case object SO  extends CharCode(0x0E) with Control
-            case object SI  extends CharCode(0x0F) with Control
-            case object DLE extends CharCode(0x10) with Control
-            case object DC1 extends CharCode(0x11) with Control
-            case object DC2 extends CharCode(0x12) with Control
-            case object DC3 extends CharCode(0x13) with Control
-            case object DC4 extends CharCode(0x14) with Control
-            case object NAK extends CharCode(0x15) with Control
-            case object SYN extends CharCode(0x16) with Control
-            case object ETB extends CharCode(0x17) with Control
-            case object CAN extends CharCode(0x18) with Control
-            case object EM  extends CharCode(0x19) with Control
-            case object SUB extends CharCode(0x1A) with Control
-            case object ESC extends CharCode(0x1B) with Control
-            case object FS  extends CharCode(0x1C) with Control
-            case object GS  extends CharCode(0x1D) with Control
-            case object RS  extends CharCode(0x1E) with Control
-            case object US  extends CharCode(0x1F) with Control
-            case object DEL extends CharCode(0x7F) with Control
-            val codes = ADT.constructors[Control]
-          }
         }
       }
     }

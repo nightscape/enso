@@ -228,25 +228,25 @@ class ParserSpec extends FlatSpec with Matchers {
   //// Escapes ////
 
   Text.Segment.Escape.Character.codes.foreach(
-    i => s"'\\$i'" ?= Text(Text.Body(q1, Text.Segment.Escape.SimpleOf(i)))
+    i => s"'\\$i'" ?= Text(Text.Body(q1, Text.Segment._Escape(i)))
   )
   Text.Segment.Escape.Control.codes.foreach(
-    i => s"'\\$i'" ?= Text(Text.Body(q1, Text.Segment.Escape.SimpleOf(i)))
+    i => s"'\\$i'" ?= Text(Text.Body(q1, Text.Segment._Escape(i)))
   )
 
   "'\\\\'" ?= Text(
-    Text.Body(q1, Text.Segment.Escape.SimpleOf(Text.Segment.Escape.Slash))
+    Text.Body(q1, Text.Segment._Escape(Text.Segment.Escape.Slash))
   )
   "'\\''" ?= Text(
-    Text.Body(q1, Text.Segment.Escape.SimpleOf(Text.Segment.Escape.Quote))
+    Text.Body(q1, Text.Segment._Escape(Text.Segment.Escape.Quote))
   )
   "'\\\"'" ?= Text(
-    Text.Body(q1, Text.Segment.Escape.SimpleOf(Text.Segment.Escape.RawQuote))
+    Text.Body(q1, Text.Segment._Escape(Text.Segment.Escape.RawQuote))
   )
   "'\\"      ?= Text.Unclosed(Text(Text.Body(q1, "\\")))
-  "'\\c'"    ?= Text(Text.Body(q1, Text.Segment.Escape.Invalid("c")))
-  "'\\cd'"   ?= Text(Text.Body(q1, Text.Segment.Escape.Invalid("c"), "d"))
-  "'\\123d'" ?= Text(Text.Body(q1, Text.Segment.Escape.Number(123), "d"))
+  "'\\c'"    ?= Text(Text.Body(q1, Text.Segment._Escape(Text.Segment.Escape.Invalid("c"))))
+  "'\\cd'"   ?= Text(Text.Body(q1, Text.Segment._Escape(Text.Segment.Escape.Invalid("c")), "d"))
+  "'\\123d'" ?= Text(Text.Body(q1, Text.Segment._Escape(Text.Segment.Escape.Number(123)), "d"))
 
   //// Interpolation ////
 

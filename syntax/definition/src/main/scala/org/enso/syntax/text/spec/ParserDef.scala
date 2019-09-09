@@ -373,40 +373,40 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
         submit()
     }
 
-    def onEscape(code: Segment.Escape[AST]): Unit = logger.trace {
-      submit(code)
+    def onEscape(code: Segment.Escape): Unit = logger.trace {
+      submit(Segment._Escape(code))
     }
 
     def onEscapeU16(): Unit = logger.trace {
       val code = currentMatch.drop(2)
-      submit(Segment.Escape.Unicode.U16(code))
+      onEscape(Segment.Escape.Unicode.U16(code))
     }
 
     def onEscapeU32(): Unit = logger.trace {
       val code = currentMatch.drop(2)
-      submit(Segment.Escape.Unicode.U32(code))
+      onEscape(Segment.Escape.Unicode.U32(code))
     }
 
     def onEscapeInt(): Unit = logger.trace {
       val int = currentMatch.drop(1).toInt
-      submit(Segment.Escape.Number(int))
+      onEscape(Segment.Escape.Number(int))
     }
 
     def onInvalidEscape(): Unit = logger.trace {
       val str = currentMatch.drop(1)
-      submit(Segment.Escape.Invalid(str))
+      onEscape(Segment.Escape.Invalid(str))
     }
 
     def onEscapeSlash(): Unit = logger.trace {
-      submit(Segment.Escape.Simple(Segment.Escape.Slash))
+      onEscape(Segment.Escape.Slash)
     }
 
     def onEscapeQuote(): Unit = logger.trace {
-      submit(Segment.Escape.Simple(Segment.Escape.Quote))
+      onEscape(Segment.Escape.Quote)
     }
 
     def onEscapeRawQuote(): Unit = logger.trace {
-      submit(Segment.Escape.Simple(Segment.Escape.RawQuote))
+      onEscape(Segment.Escape.RawQuote)
     }
 
     def onInterpolateBegin(): Unit = logger.trace {
@@ -471,6 +471,7 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
   ROOT     || "\""           || reify { text.onBegin(text.RAW, Quote.Single) }
   ROOT     || "\"\"\""       || reify { text.onBegin(text.RAW, Quote.Triple) }
   text.RAW || "\""           || reify { text.onQuote(Quote.Single)           }
+  text.RAW || "$$$$$" || reify {}
   text.RAW || "\"\"\""       || reify { text.onQuote(Quote.Triple)           }
   text.RAW || noneOf("\"\n") || reify { text.submitPlainSegment()            }
   text.RAW || eof            || reify { text.onEOF()                         }
@@ -481,15 +482,14 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
   AST.Text.Segment.Escape.Character.codes.foreach { code =>
     import scala.reflect.runtime.universe._
     val name = TermName(code.toString)
-    val char =
-      q"text.Segment.Escape.Simple(text.Segment.Escape.Character.$name)"
+    val char = q"text.Segment.Escape.Character.$name"
     text.FMT || s"\\$code" || q"text.onEscape($char)"
   }
 
   AST.Text.Segment.Escape.Control.codes.foreach { code =>
     import scala.reflect.runtime.universe._
     val name = TermName(code.toString)
-    val ctrl = q"text.Segment.Escape.Simple(text.Segment.Escape.Control.$name)"
+    val ctrl = q"text.Segment.Escape.Control.$name"
     text.FMT || s"\\$code" || q"text.onEscape($ctrl)"
   }
 
