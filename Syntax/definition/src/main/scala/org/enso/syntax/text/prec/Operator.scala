@@ -3,8 +3,6 @@ package org.enso.syntax.text.prec
 import org.enso.data.Compare._
 import org.enso.data.List1
 import org.enso.data.Shifted
-import org.enso.syntax.text.AST._
-import org.enso.syntax.text.AST.implicits._
 import org.enso.syntax.text.AST
 import org.enso.syntax.text.prec
 
@@ -40,14 +38,14 @@ object Operator {
     List1(stream).map(rebuild)
   
   final object Internal {
-    def oprToToken(ast: AST): Opr = ast match {
-      case Opr.any(t) => t
-      case _          => Opr.app
+    def oprToToken(ast: AST): AST.Opr = ast match {
+      case AST.Opr.any(t) => t
+      case _          => AST.Opr.app
     }
 
     def rebuildSubExpr(seg: Distance.Segment): AST =
       rebuildExpr(seg) match {
-        case App.Section.Sides.any(t) => t.opr
+        case AST.App.Sides.any(t) => t.opr
         case t => t
       }
 
@@ -74,15 +72,15 @@ object Operator {
               case GT => shift
               case LT => reduce
               case EQ => (op1.assoc, op2.assoc) match {
-                case (Assoc.Left, Assoc.Left) => reduce
+                case (AST.Assoc.Left, AST.Assoc.Left) => reduce
                 case _                        => shift
               }
             }
           }
 
           input.stack.head match {
-            case Opr.any(stack1) => seg1.el match {
-              case Opr.any(seg1) => go(handleAssoc(seg1, stack1))
+            case AST.Opr.any(stack1) => seg1.el match {
+              case AST.Opr.any(seg1) => go(handleAssoc(seg1, stack1))
               case _             => go(shift)
             }
             case _ => input.stack.tail match {
@@ -97,26 +95,26 @@ object Operator {
 
     def reduceHead(stack: Shifted.List1[AST]): Shifted.List1[AST] = {
       stack.head match {
-        case Opr.any(s1) => stack.tail match {
-          case Nil => (App.Section.Sides(s1), Nil)
+        case AST.Opr.any(s1) => stack.tail match {
+          case Nil => (AST.App.Sides(s1), Nil)
           case s2 :: s3_ => s2.el match {
-            case Opr.any(_) => (App.Section.Sides(s1), s2 :: s3_)
-            case _          => (App.Section.Left(s2.el, s2.off, s1), s3_)
+            case AST.Opr.any(_) => (AST.App.Sides(s1), s2 :: s3_)
+            case _          => (AST.App.Left(s2.el, s2.off, s1), s3_)
           }
         }
         case t1 => stack.tail match {
           case Nil => stack
           case s2 :: s3 :: s4_ => s2.el match {
-            case Opr.any(v2) => s3.el match {
-              case Opr.any(_) => (App.Section.Right(v2, s2.off, t1), s3 :: s4_)
-              case _          => (App.Infix(s3.el, s3.off, v2, s2.off, t1), s4_)
+            case AST.Opr.any(v2) => s3.el match {
+              case AST.Opr.any(_) => (AST.App.Right(v2, s2.off, t1), s3 :: s4_)
+              case _          => (AST.App.Infix(s3.el, s3.off, v2, s2.off, t1), s4_)
             }
-            case v2 => (App.Prefix(v2, s2.off, t1), s3 :: s4_)
+            case v2 => (AST.App.Prefix(v2, s2.off, t1), s3 :: s4_)
           }
 
           case s2 :: s3_ => s2.el match {
-            case Opr.any(v2) => (App.Section.Right(v2, s2.off, t1), s3_)
-            case v2          => (App.Prefix(v2, s2.off, t1), s3_)
+            case AST.Opr.any(v2) => (AST.App.Right(v2, s2.off, t1), s3_)
+            case v2          => (AST.App.Prefix(v2, s2.off, t1), s3_)
           }
         }
       }

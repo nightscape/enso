@@ -192,7 +192,7 @@ class Parser {
             val id       = resolvedAST.id.getOrElse(throw new Error(s"Missing ID"))
             val segments = resolvedAST.segs.toList().map(_.el)
             val ctx      = AST.Macro.Resolver.Context(resolvedAST.pfx, segments, id)
-            resolvedAST.copy(unFix = resolvedAST.unFix.copy[AST](resolved = {
+            resolvedAST.copy(shape = resolvedAST.shape.copy[AST](resolved = {
               //              println("SPEC RESOLVER")
               //              println(spec)
               resolveMacros(spec.resolver(ctx))
@@ -215,7 +215,7 @@ class Parser {
 }
 
 object Parser {
-  def apply(): Parser = new Parser()
+  def apply(): Parser   = new Parser()
   private val newEngine = flexer.Parser.compile(ParserDef())
 
   //// Exceptions ////

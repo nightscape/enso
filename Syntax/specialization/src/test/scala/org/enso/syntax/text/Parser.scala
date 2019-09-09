@@ -6,7 +6,7 @@ import org.enso.data.Tree
 import org.enso.flexer.Reader
 import org.enso.syntax.text.AST.Block.OptLine
 import org.enso.syntax.text.AST._
-import org.enso.syntax.text.AST.implicits._
+import org.enso.syntax.text.AST.conversions._
 import org.enso.syntax.text.ast.DSL._
 import org.scalatest._
 

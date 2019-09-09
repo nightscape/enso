@@ -1,16 +1,11 @@
 package org.enso.syntax.text.spec
 
-import java.io.DataInputStream
-
-import org.enso.data.VectorMap
 import org.enso.flexer
 import org.enso.flexer.Reader
 import org.enso.flexer.State
 import org.enso.flexer.automata.Pattern
 import org.enso.flexer.automata.Pattern._
 import org.enso.syntax.text.AST
-import org.enso.syntax.text.AST.implicits._
-import org.enso.syntax.text.AST.Text.Segment.EOL
 
 import scala.annotation.tailrec
 import scala.reflect.runtime.universe.reify
@@ -130,7 +125,6 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
   ////////////////////
 
   final object ident {
-    import AST.Ident._
 
     var current: Option[AST.Ident] = None
 
@@ -285,8 +279,6 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
   //////////////
   //// Text ////
   //////////////
-
-  import AST.Text.Quote
 
 //  final object text {
 //    var stack: List[AST.Text.Interpolated] = Nil

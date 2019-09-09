@@ -3,19 +3,19 @@ package org.enso.syntax.text.ast
 import org.enso.syntax.text.AST
 
 object DSL {
-  import AST._
-  import AST.implicits._
+  import AST.conversions._
 
   implicit final class ASTHelper(self: AST) {
     private def smartApp(off: Int, r: AST): AST = self match {
-      case AST.App.Section.Left.any(t) => App.Infix(t.arg, t.off, t.opr, off, r)
-      case _                           => smartAppRaw(off, r)
+      case AST.App.Section.Left.any(t) =>
+        AST.App.Infix(t.arg, t.off, t.opr, off, r)
+      case _ => smartAppRaw(off, r)
     }
 
     private def smartAppRaw(off: Int, r: AST): AST = (self, r) match {
-      case (l, Opr.any(r)) => App.Section.Left(l, off, r)
-      case (Opr.any(l), r) => App.Section.Right(l, off, r)
-      case (l, r)          => App.Prefix(l, off, r)
+      case (l, AST.Opr.any(r)) => AST.App.Left(l, off, r)
+      case (AST.Opr.any(l), r) => AST.App.Right(l, off, r)
+      case (l, r)              => AST.App.Prefix(l, off, r)
     }
 
     def $(t: AST)    = smartApp(0, t)
