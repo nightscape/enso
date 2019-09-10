@@ -14,7 +14,7 @@ import org.enso.syntax.text.ast.DSL._
 import scala.math.pow
 
 
-object ParserBenchmark extends Bench.LocalTime {
+object ParserBenchmark extends Bench.OfflineRegressionReport {
 
   val range = 0
   def exp(i: Int) =
