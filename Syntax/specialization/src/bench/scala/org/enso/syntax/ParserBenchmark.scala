@@ -34,9 +34,9 @@ object ParserBenchmark extends Bench.LocalTime {
       if (j % 2 == 0) v = n2 $_ v
       else v = n1 $__ v
     }
-    for { j <- 0.to(i) } v = v match {
+    for {_ <- 0.to(i)} v = v match {
       case AST.Var(_)              => v
-      case AST.App.Prefix(fn, arg) => arg
+      case AST.App.Prefix(_, arg) => arg
     }
   }
 
@@ -44,9 +44,9 @@ object ParserBenchmark extends Bench.LocalTime {
     val n1     = "foo" + i.toString
     val n2     = n1 + "!"
     var v: AST = AST.Var(n1)
-    for { j <- 0.to(i) } v = n2 $_ v
-    for { j <- 0.to(i) } v = v match {
-      case AST.App.Prefix(fn, arg) => arg
+    for {_ <- 0.to(i)} v = n2 $_ v
+    for {_ <- 0.to(i)} v = v match {
+      case AST.App.Prefix(_, arg) => arg
     }
   }
 

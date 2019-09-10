@@ -2,13 +2,10 @@ package org.enso.syntax.text
 
 import org.enso.flexer
 import org.enso.flexer.Reader
-import org.enso.syntax.text.ast.meta.Builtin
-import org.enso.syntax.text.prec.Macro
-import org.enso.syntax.text.spec.ParserDef
-import org.enso.syntax.text.ast.meta.Pattern
-import org.enso.syntax.text.prec.Distance
-import org.enso.syntax.text.prec.Operator
+import org.enso.syntax.text.ast.meta.{Builtin, Pattern}
 import org.enso.syntax.text.ast.opr.Prec
+import org.enso.syntax.text.prec.{Distance, Macro, Operator}
+import org.enso.syntax.text.spec.ParserDef
 
 import scala.annotation.tailrec
 
@@ -288,28 +285,17 @@ object Main extends App {
 
   val in_arr1 = "a = b -> c d"
 
-  // (if a) then
-  // if (a then)
-  // (a) b = c
-  // (a) b = c)
   val in3 = "(a) b = c"
   val in4 = "if a then (b)"
   val in2 = "(a) b = c]"
-  //  val inp = "foreign Py\n xx"
-  //val inp = "(a) b = c"
-  //val inp = "a = b -> c"
-  //val inp = "a = b -> c d"
   val inp = "a (b (c)) x"
-  //  val inp = "x(x[a))"
-  // 48
 
   println("--- PARSING ---")
 
   val mod = parser.run(
     new Reader(inp),
-    Map() // (0, 5) -> UUID.fromString("00000000-0000-0000-0000-000000000000"))
+    Map()
   )
-  //  pprint.pprintln(mod, width = 50, height = 10000)
 
   println(pretty(mod.toString))
 
@@ -326,14 +312,8 @@ object Main extends App {
   println(mod.show())
   println("------")
 
-  //  mod.traverseWithOff { (off, ast) =>
-  //    println(s">> $off - ${off + ast.span}: $ast")
-  //    ast
-  //  }
-
   println()
 
   AST.main()
-//  v3.AST.main()
 
 }
