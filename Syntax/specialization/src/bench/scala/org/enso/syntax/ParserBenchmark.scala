@@ -54,12 +54,10 @@ object ParserBenchmark extends Bench.LocalTime {
   val tests = List(
     "text"   -> gen(exp(10), i => "'abcdefgh'" * i),
     "number" -> gen(exp(10), i => "12345678 " * i),
-    "calls"      -> gen(exp(10), i => "(a b " * i + ")" * i),
-    "codeBlock"  -> gen(exp(10), i => "a=x\nb++\n" * i),
-    "openParens" -> gen(exp(10), i => "((((((((" * i),
-    "clsdParens" -> gen(exp(10), i => "((((" * i + "))))" * i),
+    "codeBlock"  -> gen(exp(10), i => "foo\nbar\n" * i),
+    "codeBlock with macros"  -> gen(exp(10), i => "a=x\nb++\n" * i),
     "allRules" -> gen(
-      exp(10),
+      exp(7),
       i => """
              | string = "ABCD"
              | number = 123_4.67
