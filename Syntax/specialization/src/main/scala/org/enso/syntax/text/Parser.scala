@@ -125,8 +125,8 @@ class InternalError(reason: String, cause: Throwable = None.orNull)
   * all information allowing for printing the code back from the AST, while
   * keeping all whitespaces as they were before parsing. This is why each
   * space-aware AST, like [[AST.App]] records all positional information. For
-  * convenient usage, all space-aware [[AST]] definitions start with underscore,
-  * like [[AST._App]] and have a non-underscore counterpart allowing for pattern
+  * convenient usage, all space-aware [[AST]] definitions end with "Of",
+  * like [[AST.App.PrefixOf]] and have a counterpart without "Of" allowing for pattern
   * matching without thinking about the spacing information. Because macro
   * system is end-user extensible, we cannot assume that the end-user will care
   * about recording valid spacing when transforming [[AST]] to another form.
@@ -148,11 +148,9 @@ class Parser {
 
   def run(input: Reader, idMap: Map[(Int, Int), AST.ID]): AST.Module =
     engine.run(input).map(Macro.run) match {
-      case flexer.Parser.Result(_, flexer.Parser.Result.Success(mod)) => {
+      case flexer.Parser.Result(_, flexer.Parser.Result.Success(mod)) =>
         val mod2 = annotateModule(idMap, mod)
         resolveMacros(mod2).asInstanceOf[AST.Module]
-//        mod2
-      }
       case _ => throw ParsingFailed
     }
 
@@ -160,11 +158,6 @@ class Parser {
     idMap: Map[(Int, Int), AST.ID],
     mod: AST.Module
   ): AST.Module = mod.traverseWithOff { (off, ast) =>
-//    println()
-//    println("----------")
-//    println(s">> $off (${ast.repr.span})")
-//    println(ast.repr.build())
-//    println(Main.pretty(ast.toString))
     idMap.get((off, ast.repr.span)) match {
       case Some(id) => ast.setID(id)
       case None =>
@@ -175,13 +168,10 @@ class Parser {
     }
   }
 
-//  /** Although this function does not use any Parser-specific API now, it will
-//    * use such in the future when the interpreter will provide information about
-//    * defined macros other than [[Builtin.registry]].
-//    */
-//  def resolveMacros(ast: AST.Module): AST.Module =
-//    ast.map(resolveMacros)
-
+  /** Although this function does not use any Parser-specific API now, it will
+    * use such in the future when the interpreter will provide information about
+    * defined macros other than [[Builtin.registry]].
+    */
   def resolveMacros(ast: AST): AST =
     ast match {
       case AST.Macro.Match.any(ast) =>
@@ -193,8 +183,6 @@ class Parser {
             val segments = resolvedAST.segs.toList().map(_.el)
             val ctx      = AST.Macro.Resolver.Context(resolvedAST.pfx, segments, id)
             resolvedAST.copy(shape = resolvedAST.shape.copy[AST](resolved = {
-              //              println("SPEC RESOLVER")
-              //              println(spec)
               resolveMacros(spec.resolver(ctx))
             }))
         }
