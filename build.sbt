@@ -58,11 +58,10 @@ scalacOptions in ThisBuild ++= Seq(
   "-Ywarn-unused:privates",            // Warn if a private member is unused.
   "-Ywarn-value-discard",              // Warn when non-Unit expression results are unused.
   "-Ypartial-unification",             // Enable partial unification (which is enabled by default in Scala 2.13).
-  "-Xmacro-settings:-logging@org.enso" // Disable the debug logging globally.
-  // "-Xcheckinit",                    // Wrap field accessors to throw an exception on uninitialized access.
-  // "-Xfatal-warnings",               // Fail the compilation if there are any warnings.
-  // "-optimize"                       // Optimize the code (not working in Scala 2.12.8)
-  // "-Xmacro-settings:-logging@org.enso.flexer.automata"
+  "-Xmacro-settings:-logging@org.enso",// Disable the debug logging globally.
+  "-Xcheckinit",                       // Wrap field accessors to throw an exception on uninitialized access.
+  // "-Xfatal-warnings",                 // Fail the compilation if there are any warnings.
+  // "-optimize"                         // Optimize the code (not working in Scala 2.12.8)
 )
 
 /////////////////////////////////
