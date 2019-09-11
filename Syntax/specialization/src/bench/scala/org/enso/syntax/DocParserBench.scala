@@ -21,14 +21,14 @@ object DocParserBench extends Bench.OfflineRegressionReport {
     for { i <- range } yield f(i)
 
   val tests = List(
-    "formatters" -> gen(exp(10), i => "*foobar*\n" * i),
-    "unclosed"   -> gen(exp(10), i => "*_foobo*\n" * i),
-    "combined"   -> gen(exp(10), i => "*_~fo~_*\n" * i),
-    "normal"     -> gen(exp(10), i => "test1234\n" * i),
-    "tags"       -> gen(exp(10), i => "ADDED\nfoo" * i),
-    "link"       -> gen(exp(10), i => "[fo](bo)\n" * i),
+    "formatters" -> gen(exp(14), i => "*foo bar*\n" * i),
+    "unclosed"   -> gen(exp(14), i => "*_foobar*\n" * i),
+    "combined"   -> gen(exp(14), i => "*_~fo0~_*\n" * i),
+    "normal"     -> gen(exp(14), i => "test12345\n" * i),
+    "link"       -> gen(exp(14), i => "[foo](bo)\n" * i),
+    "tags"       -> gen(exp(14), i => "ADDED\nfoo\n" * i),
     "list" -> gen(
-      exp(10),
+      exp(13),
       i => """foo
              |  - A
              |  - B
@@ -36,7 +36,7 @@ object DocParserBench extends Bench.OfflineRegressionReport {
              |""".stripMargin * i
     ),
     "list_nested" -> gen(
-      exp(10),
+      exp(12),
       i => """foo
              |  - A
              |  - B
@@ -46,8 +46,8 @@ object DocParserBench extends Bench.OfflineRegressionReport {
              |""".stripMargin * i
     ),
     "sections" -> gen(
-      exp(10),
-      i => "Foo\n\n!B\n\n?C\n\n>D" * i
+      exp(13),
+      i => "Foo\n\n!B\n\n?C \n\n>D \n\n" * i
     )
   )
 
