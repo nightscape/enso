@@ -1,7 +1,11 @@
 package org.enso.interpreter.node.callable;
 
+import com.oracle.truffle.api.RootCallTarget;
+import com.oracle.truffle.api.Truffle;
 import com.oracle.truffle.api.dsl.Fallback;
 import com.oracle.truffle.api.dsl.Specialization;
+import com.oracle.truffle.api.nodes.DirectCallNode;
+import com.oracle.truffle.api.nodes.ExplodeLoop;
 import com.oracle.truffle.api.profiles.ConditionProfile;
 import org.enso.interpreter.Constants;
 import org.enso.interpreter.node.BaseNode;
@@ -9,6 +13,7 @@ import org.enso.interpreter.node.callable.argument.sorter.ArgumentSorterNode;
 import org.enso.interpreter.node.callable.argument.sorter.ArgumentSorterNodeGen;
 import org.enso.interpreter.runtime.callable.UnresolvedSymbol;
 import org.enso.interpreter.runtime.callable.argument.CallArgumentInfo;
+import org.enso.interpreter.runtime.callable.argument.Suspension;
 import org.enso.interpreter.runtime.callable.atom.Atom;
 import org.enso.interpreter.runtime.callable.atom.AtomConstructor;
 import org.enso.interpreter.runtime.callable.function.Function;
@@ -28,6 +33,8 @@ public abstract class InvokeCallableNode extends BaseNode {
   @Child private ArgumentSorterNode argumentSorter;
   @Child private MethodResolverNode methodResolverNode;
 
+  @Children private DirectCallNode[] executors;
+
   private final boolean canApplyThis;
   private final int thisArgumentPosition;
 
@@ -40,7 +47,8 @@ public abstract class InvokeCallableNode extends BaseNode {
    * @param hasDefaultsSuspended whether or not the invocation has the callable's default arguments
    *     (if any) suspended
    */
-  public InvokeCallableNode(CallArgumentInfo[] schema, boolean hasDefaultsSuspended) {
+  public InvokeCallableNode(
+      CallArgumentInfo[] schema, RootCallTarget[] argExprs, boolean hasDefaultsSuspended) {
     boolean appliesThis = false;
     int idx = 0;
     for (; idx < schema.length; idx++) {
@@ -58,6 +66,20 @@ public abstract class InvokeCallableNode extends BaseNode {
 
     this.argumentSorter = ArgumentSorterNodeGen.create(schema, hasDefaultsSuspended);
     this.methodResolverNode = MethodResolverNodeGen.create();
+
+    executors = new DirectCallNode[argExprs.length];
+    for (int i = 0; i < argExprs.length; i++) {
+      executors[i] = Truffle.getRuntime().createDirectCallNode(argExprs[i]);
+    }
+  }
+
+  @ExplodeLoop
+  public Object[] evaluateArgs(Object[] args) {
+    Object[] result = new Object[executors.length];
+    for (int i = 0; i < executors.length; i++) {
+      result[i] = executors[i].call(((Suspension) args[i]).getScope());
+    }
+    return result;
   }
 
   /**
@@ -69,7 +91,7 @@ public abstract class InvokeCallableNode extends BaseNode {
    */
   @Specialization
   public Object invokeFunction(Function function, Object[] arguments) {
-    return this.argumentSorter.execute(function, arguments);
+    return this.argumentSorter.execute(function, evaluateArgs(arguments));
   }
 
   /**
@@ -81,7 +103,7 @@ public abstract class InvokeCallableNode extends BaseNode {
    */
   @Specialization
   public Object invokeConstructor(AtomConstructor constructor, Object[] arguments) {
-    return invokeFunction(constructor.getConstructorFunction(), arguments);
+    return invokeFunction(constructor.getConstructorFunction(), (arguments));
   }
 
   /**
@@ -94,6 +116,7 @@ public abstract class InvokeCallableNode extends BaseNode {
    */
   @Specialization
   public Object invokeDynamicSymbol(UnresolvedSymbol symbol, Object[] arguments) {
+    arguments = evaluateArgs(arguments);
     if (canApplyThis) {
       Object selfArgument = arguments[thisArgumentPosition];
       if (methodCalledOnNonAtom.profile(TypesGen.isAtom(selfArgument))) {

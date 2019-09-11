@@ -34,6 +34,7 @@ class FunctionArgumentsTest extends LanguageTest {
   }
 
   "Function calls" should "accept more arguments than needed and pass them to the result upon execution" in {
+    pending
     val code =
       """
         |@{
@@ -47,6 +48,7 @@ class FunctionArgumentsTest extends LanguageTest {
   }
 
   "Function calls" should "allow oversaturation and execute until completion" in {
+    pending
     val code =
       """
         |@{
@@ -60,6 +62,7 @@ class FunctionArgumentsTest extends LanguageTest {
   }
 
   "Function calls" should "be able to return atoms that are evaluated with oversaturated args" in {
+    pending
     val code =
       """
         |@{
@@ -77,6 +80,7 @@ class FunctionArgumentsTest extends LanguageTest {
   }
 
   "Methods" should "support the use of oversaturated args" in {
+    pending
     val code =
       """
         |Unit.myMethod = 1

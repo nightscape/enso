@@ -1,8 +1,13 @@
 package org.enso.interpreter.builder;
 
+import com.oracle.truffle.api.Truffle;
+import com.oracle.truffle.api.frame.Frame;
+import com.oracle.truffle.api.frame.FrameDescriptor;
 import org.enso.interpreter.AstCallArgVisitor;
 import org.enso.interpreter.AstExpression;
 import org.enso.interpreter.Language;
+import org.enso.interpreter.node.EnsoRootNode;
+import org.enso.interpreter.node.callable.argument.SuspensionNode;
 import org.enso.interpreter.runtime.callable.argument.CallArgument;
 import org.enso.interpreter.runtime.scope.ModuleScope;
 import org.enso.interpreter.runtime.scope.LocalScope;
@@ -47,7 +52,16 @@ public class CallArgFactory implements AstCallArgVisitor<CallArgument> {
   @Override
   public CallArgument visitNamedCallArg(String name, AstExpression value, int position) {
     ExpressionFactory factory = new ExpressionFactory(language, scope, scopeName, moduleScope);
-    return new CallArgument(name, value.visit(factory));
+    return new CallArgument(
+        name,
+        Truffle.getRuntime()
+            .createCallTarget(
+                new EnsoRootNode(
+                    language,
+                    scope.getFrameDescriptor(),
+                    new SuspensionNode(value.visit(factory)),
+                    null,
+                    "foo")));
   }
 
   /**
@@ -63,6 +77,14 @@ public class CallArgFactory implements AstCallArgVisitor<CallArgument> {
   @Override
   public CallArgument visitUnnamedCallArg(AstExpression value, int position) {
     ExpressionFactory factory = new ExpressionFactory(language, scope, scopeName, moduleScope);
-    return new CallArgument(value.visit(factory));
+    return new CallArgument(
+        Truffle.getRuntime()
+            .createCallTarget(
+                new EnsoRootNode(
+                    language,
+                    scope.getFrameDescriptor(),
+                    new SuspensionNode(value.visit(factory)),
+                    null,
+                    "foo")));
   }
 }

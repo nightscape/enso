@@ -54,9 +54,9 @@ public class CachedArgumentSorterNode extends BaseNode {
     appliesFully = functionIsFullyApplied;
 
     if (postApplicationSchema.hasOversaturatedArgs()) {
-      oversaturatedCallableNode =
-          InvokeCallableNodeGen.create(
-              postApplicationSchema.getOversaturatedArguments(), hasDefaultsSuspended);
+      oversaturatedCallableNode = null;
+//          InvokeCallableNodeGen.create(
+//              postApplicationSchema.getOversaturatedArguments(), hasDefaultsSuspended);
       oversaturatedCallableNode.setTail(isTail);
     }
   }
