@@ -83,10 +83,7 @@ lazy val buildNativeImage =
 lazy val enso = (project in file("."))
   .settings(version := "0.1")
   .aggregate(syntax, pkg, interpreter)
-  .settings(
-    aggregate in bench := false,
-    bench := { (interpreter / bench).value; (syntax / bench).value }
-  )
+  .settings(Global / concurrentRestrictions := Seq(Tags.exclusive(Exclusive)))
 
 ////////////////////////////
 //// Dependency Bundles ////
@@ -179,7 +176,7 @@ lazy val syntax = (project in file("Syntax/specialization"))
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     logBuffered := false,
     inConfig(Benchmark)(Defaults.testSettings),
-    bench := (test in Benchmark).value,
+    bench := (test in Benchmark).tag(Exclusive).value,
     parallelExecution in Benchmark := false,
     libraryDependencies ++= Seq(
       "com.storm-enroute" %% "scalameter" % "0.17" % "bench",
@@ -271,7 +268,7 @@ lazy val interpreter = (project in file("Interpreter"))
     logBuffered := false,
     inConfig(Benchmark)(Defaults.testSettings),
     inConfig(Benchmark)(truffleRunOptions),
-    bench := (test in Benchmark).value,
+    bench := (test in Benchmark).tag(Exclusive).value,
     benchOnly := Def.inputTaskDyn {
       import complete.Parsers.spaceDelimited
       val name = spaceDelimited("<name>").parsed match {
