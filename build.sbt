@@ -1,5 +1,7 @@
 import sbt.Keys.scalacOptions
 import scala.sys.process._
+import org.enso.build.BenchTasks._
+import org.enso.build.WithDebugCommand
 
 //////////////////////////////
 //// Global Configuration ////
@@ -68,9 +70,9 @@ scalacOptions in ThisBuild ++= Seq(
 //// Benchmark Configuration ////
 /////////////////////////////////
 
-lazy val Benchmark = config("bench") extend Test
-lazy val bench     = taskKey[Unit]("Run Benchmarks")
-lazy val benchOnly = inputKey[Unit]("Run benchmarks by name substring")
+lazy val Benchmark = config("bench") extend sbt.Test
+
+// Native Image Generation
 lazy val buildNativeImage =
   taskKey[Unit]("Build native image for the Enso executable")
 
@@ -237,13 +239,16 @@ lazy val interpreter = (project in file("Interpreter"))
       "org.scalatest"          %% "scalatest"                % "3.2.0-SNAP10" % Test,
       "org.typelevel"          %% "cats-core"                % "2.0.0-M4",
       "commons-cli"            % "commons-cli"               % "1.4"
-    )
+    ),
+    libraryDependencies ++= jmh
   )
   .settings(
     (Compile / javacOptions) ++= Seq(
       "-s",
       (Compile / sourceManaged).value.getAbsolutePath
-    ),
+    )
+  )
+  .settings(
     (Compile / compile) := (Compile / compile)
       .dependsOn(Def.task { (Compile / sourceManaged).value.mkdirs })
       .value
