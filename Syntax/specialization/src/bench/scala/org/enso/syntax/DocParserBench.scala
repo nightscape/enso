@@ -4,10 +4,14 @@ import org.enso.syntax.text.DocParser
 import org.enso.syntax.text.DocParser.Result
 import org.enso.syntax.text.ast.Doc
 import org.scalameter.api._
+import org.scalameter.execution.LocalExecutor
+import org.scalameter.picklers.Implicits._
 
 import scala.math.pow
 
-object DocParserBench extends Bench.LocalTime {
+object DocParserBench extends Bench.OfflineRegressionReport {
+
+  override def executor = new LocalExecutor(warmer, aggregator, measurer)
 
   val range = 0
   def exp(i: Int): Gen[Int] =
@@ -17,14 +21,14 @@ object DocParserBench extends Bench.LocalTime {
     for { i <- range } yield f(i)
 
   val tests = List(
-    "formatters" -> gen(exp(18), i => "*foobar*\n" * i),
-    "unclosed"   -> gen(exp(18), i => "*_foobo*\n" * i),
-    "combined"   -> gen(exp(18), i => "*_~fo~_*\n" * i),
-    "normal"     -> gen(exp(18), i => "test1234\n" * i),
-    "tags"       -> gen(exp(18), i => "ADDED\nfoo" * i),
-    "link"       -> gen(exp(18), i => "[fo](bo)\n" * i),
+    "formatters" -> gen(exp(10), i => "*foobar*\n" * i),
+    "unclosed"   -> gen(exp(10), i => "*_foobo*\n" * i),
+    "combined"   -> gen(exp(10), i => "*_~fo~_*\n" * i),
+    "normal"     -> gen(exp(10), i => "test1234\n" * i),
+    "tags"       -> gen(exp(10), i => "ADDED\nfoo" * i),
+    "link"       -> gen(exp(10), i => "[fo](bo)\n" * i),
     "list" -> gen(
-      exp(18),
+      exp(10),
       i => """foo
              |  - A
              |  - B
@@ -32,7 +36,7 @@ object DocParserBench extends Bench.LocalTime {
              |""".stripMargin * i
     ),
     "list_nested" -> gen(
-      exp(18),
+      exp(10),
       i => """foo
              |  - A
              |  - B
@@ -42,7 +46,7 @@ object DocParserBench extends Bench.LocalTime {
              |""".stripMargin * i
     ),
     "sections" -> gen(
-      exp(18),
+      exp(10),
       i => "Foo\n\n!B\n\n?C\n\n>D" * i
     )
   )

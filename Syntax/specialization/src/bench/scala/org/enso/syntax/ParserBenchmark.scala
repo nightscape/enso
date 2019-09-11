@@ -10,19 +10,14 @@ import org.enso.flexer
 import org.enso.syntax.text.Parser
 import org.scalameter.api._
 import org.enso.syntax.text.ast.DSL._
-import org.scalameter.Executor
-import org.scalameter.execution
+import org.scalameter.execution.LocalExecutor
 import org.scalameter.picklers.Implicits._
 
 import scala.math.pow
 
 object ParserBenchmark extends Bench.OfflineRegressionReport {
 
-  override def executor: Executor[Double] = new execution.LocalExecutor(
-    warmer,
-    aggregator,
-    measurer
-  )
+  override def executor = new LocalExecutor(warmer, aggregator, measurer)
 
   val range = 0
   def exp(i: Int) =
@@ -38,11 +33,11 @@ object ParserBenchmark extends Bench.OfflineRegressionReport {
     val n1     = "foo" + i.toString
     val n2     = n1 + "!"
     var v: AST = AST.Var(n1)
-    for { j <- 0.to(i) } {
+    for { j <- 0 to i } {
       if (j % 2 == 0) v = n2 $_ v
       else v = n1 $__ v
     }
-    for { _ <- 0.to(i) } v = v match {
+    for { _ <- 0 to i } v = v match {
       case AST.Var(_)             => v
       case AST.App.Prefix(_, arg) => arg
     }
@@ -52,8 +47,8 @@ object ParserBenchmark extends Bench.OfflineRegressionReport {
     val n1     = "foo" + i.toString
     val n2     = n1 + "!"
     var v: AST = AST.Var(n1)
-    for { _ <- 0.to(i) } v = n2 $_ v
-    for { _ <- 0.to(i) } v = v match {
+    for { _ <- 0 to i } v = n2 $_ v
+    for { _ <- 0 to i } v = v match {
       case AST.App.Prefix(_, arg) => arg
     }
   }
