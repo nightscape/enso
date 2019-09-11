@@ -161,7 +161,7 @@ lazy val flexer = (project in file("lib/flexer"))
 lazy val unused = (project in file("lib/unused"))
   .settings(version := "0.1", scalacOptions += "-nowarn")
 
-lazy val syntax_definition = (project in file("syntax/definition"))
+lazy val syntax_definition = (project in file("Syntax/definition"))
   .dependsOn(logger, flexer)
   .settings(
     libraryDependencies ++= monocle ++ cats ++ scala_compiler ++ Seq(
@@ -169,7 +169,7 @@ lazy val syntax_definition = (project in file("syntax/definition"))
     )
   )
 
-lazy val syntax = (project in file("syntax/specialization"))
+lazy val syntax = (project in file("Syntax/specialization"))
   .dependsOn(logger, flexer, syntax_definition)
   .configs(Test)
   .configs(Benchmark)
