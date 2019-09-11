@@ -218,7 +218,7 @@ lazy val interpreter = (project in file("Interpreter"))
   .settings(
     mainClass in (Compile, run) := Some("org.enso.interpreter.Main"),
     version := "0.1",
-    commands += RunDebugCommand.runDebug,
+    commands += WithDebugCommand.withDebug,
     inConfig(Compile)(truffleRunOptions),
     inConfig(Test)(truffleRunOptions),
     parallelExecution in Test := false,
