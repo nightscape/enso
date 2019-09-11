@@ -74,6 +74,8 @@ lazy val benchOnly = inputKey[Unit]("Run benchmarks by name substring")
 lazy val buildNativeImage =
   taskKey[Unit]("Build native image for the Enso executable")
 
+parallelExecution in Benchmark := false
+
 ////////////////////////
 //// Global Project ////
 ////////////////////////
