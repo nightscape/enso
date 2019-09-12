@@ -22,6 +22,7 @@ variables:
 
 jobs:
 - job: Linux
+  timeoutInMinutes: 90
   pool:
     vmImage: 'Ubuntu-16.04'
   container:
@@ -55,6 +56,7 @@ jobs:
     condition: eq(variables['Agent.JobStatus'], 'SucceededWithIssues')
     displayName: "Fail if there were issues"
 - job: macOS
+  timeoutInMinutes: 90
   pool:
     vmImage: macOS-10.13
   steps:
@@ -91,6 +93,7 @@ jobs:
     condition: eq(variables['Agent.JobStatus'], 'SucceededWithIssues')
     displayName: "Fail if there were issues"
 - job: Windows
+  timeoutInMinutes: 90
   pool:
     vmImage: windows-2019
   steps:
