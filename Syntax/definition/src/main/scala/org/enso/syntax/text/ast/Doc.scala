@@ -18,9 +18,10 @@ import scala.util.Random
 /** Doc - The highest level container, the output of Doc Parser
   *
   * Doc can be made of up to 3 elements:
-  * @param tags - If exists, holds applied tags to documented text
-  * @param synopsis - If exists, holds synopsis of documented text
-  * @param body - If exists, holds body of documented text
+  *
+  * @param tags     - If exists, holds [[Doc#Tags]] to documented text
+  * @param synopsis - If exists, holds [[Doc#Synopsis]] of documented text
+  * @param body     - If exists, holds [[Doc#Body]] of documented text
   */
 final case class Doc(
   tags: Option[Doc.Tags],
@@ -57,8 +58,7 @@ object Doc {
     *
     * It extends Repr.Provider, so it also contain repr method, as well as
     * span and show values. In addition to that it specifies html method for
-    * extending tokens and renderHTML method for creating ready-to-deploy HTML
-    * file from documentation
+    * extending tokens and getting HTML file out of Doc Parser
     */
   sealed trait Symbol extends Repr.Provider {
     def show() = repr.build()
@@ -100,11 +100,11 @@ object Doc {
     //// Normal text & Newline /////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////
 
-    /* Text - used to hold normal string as Elem
-     * Newline - used to hold newline ('\n') as elem
-     */
+    /** Text - used to hold normal string as Elem
+      * Newline - used to hold newline ('\n') as elem
+      */
     final case class Text(text: String) extends Elem {
-      val repr: Repr.Builder = text
+      val repr: Repr.Builder = R + text
       val html: HTML         = Seq(text)
     }
 
@@ -205,9 +205,10 @@ object Doc {
       def apply(elem: CodeBlock.Line): CodeBlock = CodeBlock(List1(elem))
       def apply(elems: CodeBlock.Line*): CodeBlock =
         CodeBlock(List1(elems.head, elems.tail.toList))
-      /* Inline - line of code which is in line with other elements
-       * Line - elem which is a part of Code Block
-       */
+
+      /** Inline - line of code which is in line with other elements
+        * Line - elem which is a part of Code Block
+        */
       final case class Inline(str: String) extends Elem {
         val marker             = '`'
         val repr: Repr.Builder = R + marker + str + marker
@@ -550,7 +551,7 @@ object Doc {
         case object Removed    extends Type
         case object Modified   extends Type
         case object Upcoming   extends Type
-        val codes = ADT.constructors[Type]
+        val codes: Set[Type] = ADT.constructors[Type]
       }
       case object Unrecognized extends Type
 
