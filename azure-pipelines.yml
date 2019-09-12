@@ -39,8 +39,12 @@ jobs:
     displayName: sbt test
     continueOnError: true
   - script: |
-      sbt -no-colors bench
-    displayName: sbt bench
+      sbt -no-colors syntax/bench
+    displayName: sbt bench parser
+    continueOnError: true
+  - script: |
+      sbt -no-colors interpreter/bench
+    displayName: sbt bench interpreter
     continueOnError: true
   - task: PublishTestResults@2
     inputs:
@@ -107,9 +111,13 @@ jobs:
     continueOnError: true
     displayName: "sbt test"
   - script: |
-      sbt bench
+      sbt -no-colors syntax/bench
+    displayName: sbt bench parser
     continueOnError: true
-    displayName: "sbt bench"
+  - script: |
+      sbt -no-colors interpreter/bench
+    displayName: sbt bench interpreter
+    continueOnError: true
   - task: PublishTestResults@2
     inputs:
       testResultsFormat: 'JUnit'
