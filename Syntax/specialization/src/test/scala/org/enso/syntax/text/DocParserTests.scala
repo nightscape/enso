@@ -17,7 +17,7 @@ import org.scalatest.Assertion
 //    output match {
 //      case Result(_, Result.Success(value)) =>
 //        assert(value == result)
-//        assert(value.show() == input)
+//        assert(value.show == input)
 //      case _ =>
 //        fail(s"Parsing documentation failed, consumed ${output.offset} chars")
 //    }
@@ -46,9 +46,7 @@ import org.scalatest.Assertion
 //
 //  "*Foo*" ?= Doc(Synopsis(Section.Raw(Formatter(Formatter.Bold, "Foo"))))
 //  "_Foo_" ?= Doc(Synopsis(Section.Raw(Formatter(Formatter.Italic, "Foo"))))
-//  "~Foo~" ?= Doc(
-//    Synopsis(Section.Raw(Formatter(Formatter.Strikeout, "Foo")))
-//  )
+//  "~Foo~" ?= Doc(Synopsis(Section.Raw(Formatter(Formatter.Strikeout, "Foo"))))
 //  "`Foo`" ?= Doc(Synopsis(Section.Raw(CodeBlock.Inline("Foo"))))
 //  "~*Foo*~" ?= Doc(
 //    Synopsis(
@@ -583,7 +581,8 @@ import org.scalatest.Assertion
 //  //// Tags ////////////////////////////////////////////////////////////////////
 //  //////////////////////////////////////////////////////////////////////////////
 //
-//  val allPossibleTags = Tags.Tag.Type.codes.-(Tags.Tag.Unrecognized)
+//  val allPossibleTags: Set[Tags.Tag.Type] =
+//    Tags.Tag.Type.codes.-(Tags.Tag.Unrecognized)
 //
 //  allPossibleTags.foreach(
 //    t =>

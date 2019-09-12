@@ -293,10 +293,27 @@ object Main extends App {
 
   val in_arr1 = "a = b -> c d"
 
-  val in3 = "(a) b = c"
-  val in4 = "if a then (b)"
-  val in2 = "(a) b = c]"
-  val inp = "a (b (c)) x"
+  val in3  = "(a) b = c"
+  val in4  = "if a then (b)"
+  val in2  = "(a) b = c]"
+  val inp2 = "a (b (c)) x"
+
+  val inp = """## This function adds *x* to *y*
+              |add x y = x + y
+              |mul x y = x * y
+              |
+              |## This function divides *x* by *y*
+              |div x y = x / y
+              |
+              |## Just a comment
+              |
+              |## Foo bar baz
+              |   bax
+              |def Maybe a
+              |    ## test
+              |    def Just val:a
+              |    def Nothing
+              |""".stripMargin
 
   println("--- PARSING ---")
 
@@ -314,11 +331,20 @@ object Main extends App {
     println("\n---\n")
     println(pretty(rmod.toString))
   }
+
   println("------")
   println(mod.show() == inp)
   println("------")
   println(mod.show())
   println("------")
+
+  /** Invoking the Enso Documentation Parser */
+  println("===== DOCUMENTATION =====")
+  val documentation = DocParserRunner.document(parser.dropMacroMeta(mod))
+  println(pretty(documentation.toString))
+  println("------")
+  println(documentation.show())
+  println("=========================")
 
   println()
 
