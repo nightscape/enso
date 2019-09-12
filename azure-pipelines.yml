@@ -71,8 +71,12 @@ jobs:
     displayName: sbt test
     continueOnError: true
   - script: |
-      sbt -no-colors syntax/bench interpreter/bench
-    displayName: sbt bench
+      sbt -no-colors syntax/bench
+    displayName: sbt bench parser
+    continueOnError: true
+  - script: |
+      sbt -no-colors interpreter/bench
+    displayName: sbt bench interpreter
     continueOnError: true
   - task: PublishTestResults@2
     inputs:
