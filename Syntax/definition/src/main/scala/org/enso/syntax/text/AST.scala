@@ -5,6 +5,7 @@ import java.util.UUID
 import cats.Functor
 import cats.derived._
 import cats.implicits._
+import org.enso.data.Pool
 import org.enso.data.List1._
 import org.enso.data.List1
 import org.enso.data.Shifted
