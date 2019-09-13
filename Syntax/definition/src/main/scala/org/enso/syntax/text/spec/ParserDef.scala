@@ -12,7 +12,7 @@ import scala.annotation.tailrec
 import scala.reflect.runtime.universe.reify
 
 case class ParserDef() extends flexer.Parser[AST.Module] {
-  import ParserDef2._
+  import ParserDef._
 
   final def unwrap[T](opt: Option[T]): T = opt match {
     case None    => throw new Error("Internal Error")
@@ -684,6 +684,6 @@ case class ParserDef() extends flexer.Parser[AST.Module] {
   ROOT || any   || reify { onUnrecognized() }
 }
 
-object ParserDef2 {
+object ParserDef {
   type Result[T] = flexer.Parser.Result[T]
 }
