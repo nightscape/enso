@@ -225,28 +225,35 @@ object DocParserRunner {
     * @param lines - AST lines
     * @return - lines with possibly Doc with added AST
     */
-  //FIXME - Add offset to AST line
   def transformLines(lines: List[AST.Block.OptLine]): List[AST.Block.OptLine] =
     lines match {
-      case Line(Some(AST.Comment.any(com)), comOff) :: Line(
-            Some(AST.App.Infix.any(ast)),
-            astOff
-          ) :: rest =>
-        createDocumentedLine(com, Some(ast), comOff, astOff) :: transformLines(
-          rest
-        )
-      case Line(Some(AST.Comment.any(com)), comOff) :: Line(
-            Some(AST.Def.any(ast)),
-            astOff
-          ) :: rest =>
-        createDocumentedLine(com, Some(createDocs(ast)), comOff, astOff) :: transformLines(
-          rest
-        )
-      case Line(Some(AST.Comment.any(com)), comOff) :: rest =>
-        createDocumentedLine(com, comOff) :: transformLines(rest)
-      case x :: rest =>
-        x :: transformLines(rest)
-      case other => other
+      case ::(line1, tail) =>
+        line1 match {
+          case Line(Some(AST.Comment.any(com)), comOff) =>
+            tail match {
+              case ::(line2, rest) =>
+                line2 match {
+                  case Line(Some(AST.App.Infix.any(ast)), astOff) =>
+                    createDocumentedLine(com, Some(ast), comOff, astOff) :: transformLines(
+                      rest
+                    )
+                  case Line(Some(AST.Def.any(ast)), astOff) =>
+                    createDocumentedLine(
+                      com,
+                      Some(createDocs(ast)),
+                      comOff,
+                      astOff
+                    ) :: transformLines(rest)
+                  case other =>
+                    createDocumentedLine(com, comOff) :: other :: transformLines(
+                      rest
+                    )
+                }
+              case Nil => createDocumentedLine(com, comOff) :: Nil
+            }
+          case other => other :: transformLines(tail)
+        }
+      case Nil => Nil
     }
 
   /**
