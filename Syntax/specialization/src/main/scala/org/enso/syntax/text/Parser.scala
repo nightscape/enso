@@ -340,7 +340,9 @@ object Main extends App {
 
   /** Invoking the Enso Documentation Parser */
   println("===== DOCUMENTATION =====")
-  val documentation = DocParserRunner.document(parser.dropMacroMeta(mod))
+  val isGeneratingHTML = false
+  val droppedMeta      = parser.dropMacroMeta(mod)
+  val documentation    = DocParserRunner.document(droppedMeta, isGeneratingHTML)
   println(pretty(documentation.toString))
   println("------")
   println(documentation.show())

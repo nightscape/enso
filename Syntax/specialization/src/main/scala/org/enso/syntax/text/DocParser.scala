@@ -18,8 +18,9 @@ import org.enso.syntax.text.AST.Block.{LineOf => Line}
 //// Doc Parser ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-/** This is the main Parser class. It is being used to create documentation from
-  * commented elements created by Parser. It has been built on the same
+/** This is the class used to invoke Documentation Parser.
+  * it is used to create structured documentation from the blocks of commented
+  * text created by the main Enso parser. It has been built on the same
   * foundation as Parser, so in order to not duplicate info, please refer to
   * Parser documentation.
   */
@@ -30,6 +31,7 @@ class DocParser {
 
   /**
     * Used to match result of [[run]] function to possibly retrieve Doc
+    *
     * @param input - input string to Doc Parser
     * @return - If it was able to retrieve Doc, then retrieved data, else empty
     *           Doc
@@ -41,6 +43,7 @@ class DocParser {
 
   /**
     * Used to initialize Doc Parser with input string to get parsed Doc
+    *
     * @param input - input string to Doc Parser
     * @return - unmatched result possibly containing Doc
     */
@@ -51,8 +54,9 @@ class DocParser {
   //////////////////////////////////////////////////////////////////////////////
 
   /**
-    * Used to create HTML files from Doc with or without title after
-    * Doc Parser Runner finished it's job
+    * Used to create HTML files from Doc with or without title after Doc Parser
+    * Runner finished it's job
+    *
     * @param documented - documented made by Doc Parser Runner from AST and Doc
     */
   def onHTMLRendering(documented: AST.Documented): Unit = {
@@ -65,6 +69,7 @@ class DocParser {
 
   /**
     * Function invoked by [[onHTMLRendering]] to render HTML File
+    *
     * @param ast - ast from Doc Parser Runner
     * @param doc - Doc from Doc Parser
     * @param cssLink - string containing CSS file name
@@ -91,6 +96,7 @@ class DocParser {
 
   /**
     * Function invoked by [[renderHTML]] to create HTML.Head part of file
+    *
     * @param title - HTML page title
     * @param cssLink - string containing CSS file name
     * @return - HTML Head Code
@@ -146,23 +152,20 @@ object DocParser {
 object DocParserRunner {
 
   /**
-    * function for invoking DocParser in right places
-    * Firstly it creates Documentation on every Comment
-    * Then it traverses through ast to add appropriate AST into
-    * previously created Documented's
-    * After all that it generates HTML files for created Documented's
-    * and outputs modified AST
+    * This function invokes the documentation parser on every instance of
+    * [[AST.Comment]].
+    *
+    * It generates [[Doc]] from every [[AST.Comment]] while traversing through
+    * AST in order to append Document appropriate piece of code.
+    * It then uses this information to generate HTML files containing the
+    * human-readable documentation before returning the modified AST to Parser.
     *
     * @param module - parsed data by Parser
     * @return - AST with possible documentation
     */
-  def document(module: AST.Module): AST = {
+  def document(module: AST.Module, withHTMLGeneration: Boolean): AST = {
     val createdDocs = createDocs(module)
-
-    /** NOTE : Comment out for ease of debugging procedures
-      * in order not to create zillion .html files
-      */
-    //generateHTMLForEveryDocumented(createdDocs)
+    if (withHTMLGeneration) generateHTMLForEveryDocumented(createdDocs)
     createdDocs
   }
 
@@ -170,12 +173,11 @@ object DocParserRunner {
   //// Created Doc's in right places with appropriate AST //////////////////////
   //////////////////////////////////////////////////////////////////////////////
   /**
-    * This function gets [[AST.Module]] or [[AST.Block]]
-    * and then invokes on their lines [[transformLines]] function
-    * to create Docs from Comments with or without AST from Infix's and
-    * Def's
+    * This function gets [[AST.Module]] or [[AST.Def]] in order to traverse
+    * through their lines to create [[AST.Documented]] from [[AST.Comment]] if
+    * found, with or without AST from [[AST.App.Infix]] or [[AST.Def]]
     *
-    * @param ast - module with possibility to create Docs from comments
+    * @param ast - module with possibility to create Documentation from comments
     * @return - modified data containing possibly Documentation(s) with AST
     */
   def createDocs(ast: AST): AST = {
@@ -196,7 +198,9 @@ object DocParserRunner {
     }
   }
 
-  /** Helper functions for [[createDocs]] to traverse through Module and Def body */
+  /** Helper functions for [[createDocs]]
+    * to traverse through Module and Def body
+    */
   def traverseThroughModule(m: AST.Module): AST.Module = {
     val transformedLines = List1(transformLines(m.lines.toList))
       .getOrElse(List1(AST.Block.OptLine()))
@@ -218,6 +222,11 @@ object DocParserRunner {
     AST.Def(name, args, Some(body))
   }
 
+  /*
+   * FIXME [MM] - if AST is one liner, then on return it doesn't contain
+   *  information about it's offset, and starts on the left border, while it
+   *  should start from the same place as it has started before.
+   */
   /**
     * this is a helper function for creating docs with AST.
     * Essentially it traverses through lines and tries to find a pattern on them
