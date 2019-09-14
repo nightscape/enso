@@ -229,6 +229,7 @@ lazy val interpreter = (project in file("Interpreter"))
       "org.graalvm.truffle"    % "truffle-tck"               % "19.2.0",
       "org.graalvm.truffle"    % "truffle-tck-common"        % "19.2.0",
       "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4",
+      "com.lihaoyi"            %% "fastparse"                % "2.1.3",
       "org.scalacheck"         %% "scalacheck"               % "1.14.0" % Test,
       "org.scalactic"          %% "scalactic"                % "3.0.8" % Test,
       "org.scalatest"          %% "scalatest"                % "3.2.0-SNAP10" % Test,

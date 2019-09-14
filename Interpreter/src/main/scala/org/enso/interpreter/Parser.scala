@@ -1,10 +1,8 @@
 package org.enso.interpreter
 
 import java.util.Optional
-
+import fastparse._, ScalaWhitespace._
 import scala.collection.JavaConverters._
-import scala.language.postfixOps
-import scala.util.parsing.combinator._
 
 trait AstExpressionVisitor[+T] {
   def visitLong(l: Long): T
@@ -224,120 +222,110 @@ case class AstMatch(
     )
 }
 
-class EnsoParserInternal extends JavaTokenParsers {
+class EnsoParserInternal {
 
-  override def skipWhitespace: Boolean = true
+  def nonEmptyList[T, _ : P](parser: P[T]): P[List[T]] =
+    parser.rep(1, sep = ",").map(_.toList)
 
-  def delimited[T](beg: String, end: String, parser: Parser[T]): Parser[T] =
-    beg ~> parser <~ end
+  def wholeNumber[_: P]: P[Long] = P(CharIn("0-9").rep(1).!.map(_.toLong))
+  def long[_ : P]: P[AstLong] = wholeNumber.map(AstLong(_))
 
-  def nonEmptyList[T](parser: Parser[T]): Parser[List[T]] =
-    parser ~ (("," ~> parser) *) ^^ {
-      case e ~ es => e :: es
+  def foreign[_ : P]: P[AstForeign] =
+    ("js" | "rb" | "py").! ~ foreignLiteral map {
+      case (lang, code) => AstForeign(lang, code)
     }
 
-  def long: Parser[AstLong] = wholeNumber ^^ { numStr =>
-    AstLong(numStr.toLong)
+  def argList[_ : P]: P[List[AstCallArg]] =
+    P("[" ~ nonEmptyList(namedCallArg | unnamedCallArg) ~ "]")
+
+  def ident[_ : P]: P [String] =
+    (CharPred(Character.isJavaIdentifierStart) ~~ CharsWhile(Character.isJavaIdentifierPart(_: Char))).!.opaque("identifier") map (_.mkString)
+
+  def namedCallArg[_ : P]: P[AstNamedCallArg] = (ident ~ "=" ~ expression) map {
+    case (name, expr) => AstNamedCallArg(name, expr)
   }
 
-  def foreign: Parser[AstForeign] =
-    ("js" | "rb" | "py") ~ foreignLiteral ^^ {
-      case lang ~ code => AstForeign(lang, code)
+  def unnamedCallArg[_ : P]: P[AstCallArg] = expression map AstUnnamedCallArg
+
+  def defaultedArgDefinition[_ : P]: P[AstDefaultedArgDefinition] =
+    (ident ~ "=" ~ expression) map {
+      case (name, value) => AstDefaultedArgDefinition(name, value)
     }
 
-  def argList: Parser[List[AstCallArg]] =
-    delimited("[", "]", nonEmptyList(namedCallArg | unnamedCallArg))
+  def bareArgDefinition[_ : P]: P[AstBareArgDefinition] = ident map AstBareArgDefinition
 
-  def namedCallArg: Parser[AstNamedCallArg] = ident ~ ("=" ~> expression) ^^ {
-    case name ~ expr => AstNamedCallArg(name, expr)
-  }
+  def inArgList[_ : P]: P[List[AstArgDefinition]] =
+    P("|" ~ nonEmptyList(defaultedArgDefinition | bareArgDefinition) ~ "|")
 
-  def unnamedCallArg: Parser[AstCallArg] = expression ^^ AstUnnamedCallArg
+  def foreignLiteral[_ : P]: P[String] = "**" ~ CharsWhile(_ != '*').! ~ "**"
 
-  def defaultedArgDefinition: Parser[AstDefaultedArgDefinition] =
-    ident ~ ("=" ~> expression) ^^ {
-      case name ~ value => AstDefaultedArgDefinition(name, value)
+  def variable[_ : P]: P[AstVariable] = ident map AstVariable
+
+  def operand[_ : P]: P[AstExpression] =
+    long | foreign | variable | "(" ~ expression ~ ")" | functionCall
+
+  def arith[_ : P]: P[AstExpression] =
+    (operand ~ (("+" | "-" | "*" | "/" | "%").! ~ operand).?) map {
+      case (a, Some((op, b))) => AstArithOp(op, a, b)
+      case (a, None) => a
     }
 
-  def bareArgDefinition: Parser[AstBareArgDefinition] =
-    ident ^^ AstBareArgDefinition
-
-  def inArgList: Parser[List[AstArgDefinition]] =
-    delimited(
-      "|",
-      "|",
-      nonEmptyList(defaultedArgDefinition | bareArgDefinition)
-    )
-
-  def foreignLiteral: Parser[String] = "**" ~> "[^\\*]*".r <~ "**"
-
-  def variable: Parser[AstVariable] = ident ^^ AstVariable
-
-  def operand: Parser[AstExpression] =
-    long | foreign | variable | "(" ~> expression <~ ")" | functionCall
-
-  def arith: Parser[AstExpression] =
-    operand ~ ((("+" | "-" | "*" | "/" | "%") ~ operand) ?) ^^ {
-      case a ~ Some(op ~ b) => AstArithOp(op, a, b)
-      case a ~ None         => a
-    }
-
-  def expression: Parser[AstExpression] =
+  def expression[_ : P]: P[AstExpression] =
     ifZero | matchClause | arith | function
 
-  def functionCall: Parser[AstApply] =
-    "@" ~> expression ~ (argList ?) ~ defaultSuspend ^^ {
-      case expr ~ args ~ hasDefaultsSuspended =>
+  def functionCall[_ : P]: P[AstApply] =
+    "@" ~ expression ~ argList.? ~ defaultSuspend map {
+      case (expr, args, hasDefaultsSuspended) =>
         AstApply(expr, args.getOrElse(Nil), hasDefaultsSuspended)
     }
 
-  def defaultSuspend: Parser[Boolean] =
-    ("..." ?) ^^ ({
+  def defaultSuspend[_ : P]: P[Boolean] =
+    ("...".!.?) map ({
       case Some(_) => true
       case None    => false
     })
 
-  def assignment: Parser[AstAssignment] = ident ~ ("=" ~> expression) ^^ {
-    case v ~ exp => AstAssignment(v, exp)
+  def assignment[_ : P]: P[AstAssignment] = (ident ~ "=" ~ expression) map {
+    case (v, exp) => AstAssignment(v, exp)
   }
 
-  def print: Parser[AstPrint] = "print:" ~> expression ^^ AstPrint
+  def print[_ : P]: P[AstPrint] = P("print:" ~ expression) map AstPrint
 
-  def ifZero: Parser[AstIfZero] =
-    "ifZero:" ~> "[" ~> (expression ~ ("," ~> expression ~ ("," ~> expression))) <~ "]" ^^ {
-      case cond ~ (ift ~ iff) => AstIfZero(cond, ift, iff)
+  def ifZero[_ : P]: P[AstIfZero] =
+    P("ifZero:" ~ "[" ~ (expression ~ ("," ~ expression ~ ("," ~ expression))) ~ "]") map {
+      case (cond, (ift, iff)) => AstIfZero(cond, ift, iff)
     }
 
-  def function: Parser[AstFunction] =
-    ("{" ~> (inArgList ?) ~ ((statement <~ ";") *) ~ expression <~ "}") ^^ {
-      case args ~ stmts ~ expr => AstFunction(args.getOrElse(Nil), stmts, expr)
+  def function[_ : P]: P[AstFunction] =
+    P("{" ~/ inArgList.? ~ statement.rep(sep = ";") ~ expression ~ "}") map {
+      case (args, stmts, expr) => AstFunction(args.getOrElse(Nil), stmts.toList, expr)
     }
 
-  def caseFunction: Parser[AstCaseFunction] = function ^^ {
+  def caseFunction[_ : P]: P[AstCaseFunction] = function map {
     case AstFunction(args, stmts, ret) => AstCaseFunction(args, stmts, ret)
   }
 
-  def caseClause: Parser[AstCase] =
-    (expression <~ "~") ~ (caseFunction <~ ";") ^^ {
-      case cons ~ fun =>
+  def caseClause[_ : P]: P[AstCase] =
+    P(expression ~ "~" ~ caseFunction ~ ";") map {
+      case (cons, fun) =>
         AstCase(cons, AstCaseFunction(fun.arguments, fun.statements, fun.ret))
     }
 
-  def matchClause: Parser[AstMatch] =
-    ("match" ~> expression <~ "<") ~ (caseClause *) ~ (((caseFunction <~ ";") ?) <~ ">") ^^ {
-      case expr ~ cases ~ fallback => AstMatch(expr, cases, fallback)
+  def matchClause[_ : P]: P[AstMatch] =
+    P("match" ~ expression ~ "<" ~ caseClause.rep ~ (caseFunction ~ ";").? ~ ">") map {
+      case (expr, cases, fallback) => AstMatch(expr, cases, fallback)
     }
 
-  def statement: Parser[AstExpression] = assignment | print | expression
+  def statement[_ : P]: P[AstExpression] = assignment | print | expression
 
-  def typeDef: Parser[AstGlobalSymbol] =
-    "type" ~> ident ~ ((bareArgDefinition | ("(" ~> defaultedArgDefinition <~ ")")) *) <~ ";" ^^ {
-      case name ~ args => AstTypeDef(name, args)
+  def typeDef[_ : P]: P[AstGlobalSymbol] =
+    P("type" ~ ident ~ ((bareArgDefinition | ("(" ~ defaultedArgDefinition ~ ")")).rep) ~ ";") map {
+      case (name, args) => AstTypeDef(name, args.toList)
     }
 
-  def methodDef: Parser[AstMethodDef] =
-    (ident <~ ".") ~ (ident <~ "=") ~ expression ^^ {
-      case typeName ~ methodName ~ body =>
+  def methodDef[_ : P]: P[AstMethodDef] =
+    P(ident ~~ "." ~~/ ident ~ "=" ~ expression).map {
+      case (typeName, methodName, body) =>
         val thisArg = AstBareArgDefinition(Constants.THIS_ARGUMENT_NAME);
         val fun = body match {
           case b: AstFunction =>
@@ -345,26 +333,33 @@ class EnsoParserInternal extends JavaTokenParsers {
           case _ => AstFunction(List(thisArg), List(), body)
         }
         AstMethodDef(typeName, methodName, fun)
-    }
+    }.log
 
-  def importStmt: Parser[AstImport] =
-    "import" ~> ident ~ (("." ~> ident) *) ^^ {
-      case seg ~ segs => AstImport((seg :: segs).mkString("."))
-    }
+  def importStmt[_ : P]: P[AstImport] =
+    P("import" ~ ident.repX(sep = ".")) map (segs => AstImport(segs.mkString(".")))
 
-  def globalScope: Parser[AstGlobalScope] =
-    (importStmt *) ~ ((typeDef | methodDef) *) ~ expression ^^ {
-      case imports ~ assignments ~ expr =>
-        AstGlobalScope(imports, assignments, expr)
+  def globalScope[_ : P]: P[AstGlobalScope] =
+    P(importStmt.rep ~ (typeDef | methodDef).rep ~ expression) map {
+      case (imports, assignments, expr) =>
+        AstGlobalScope(imports.toList, assignments.toList, expr)
     }
 
   def parseGlobalScope(code: String): AstGlobalScope = {
-    parseAll(globalScope, code).get
+    val Parsed.Success(value, _) = fastparse.parse(code, globalScope(_))
+    value
   }
 
+  def expr[_ : P]: P[AstExpression] = P(expression | function)
   def parse(code: String): AstExpression = {
-    parseAll(expression | function, code).get
+    val Parsed.Success(value, _) = fastparse.parse(code, expr(_))
+    value
   }
+}
+
+object ParserTest extends App {
+  println(parse("Unit.testM = 1", new EnsoParserInternal().methodDef(_)))
+  println(parse("Unit", new EnsoParserInternal().ident(_)))
+  println(Character.isJavaIdentifierStart('U'))
 }
 
 class EnsoParser {
